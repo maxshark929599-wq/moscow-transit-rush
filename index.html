@@ -137,9 +137,236 @@
 
     <script>
         // Pre-populated Master Registry Source Array Checklist
-        const MASTER_STATIONS_REGISTRY = [
-            "Авиамоторная", "Автозаводская", "Академическая", "Алексеевская", "Алма-Атинская", "Алтуфьево", "Аминьевская", "Андроновка", "Аннино", "Апрелевка", "Арбатская", "Аэропорт", "Бабушкинская", "Багратионовская", "Баковка", "Балтийская", "Баррикадная", "Бауманская", "Беговая", "Белокаменная", "Беломорская", "Белорусская", "Бескудниково", "Бибирево", "Библиотека им. Ленина", "Битцевский парк", "Борисово", "Боровское шоссе", "Боровицкая", "Ботанический сад", "Братиславская", "Бульвар Адмирала Ушакова", "Бульвар Дмитрия Донского", "Бульвар Рокоссовского", "Бунинская аллея", "Бутырская", "Варшавская", "ВДНХ", "Верхние Лихоборы", "Вешняки", "Владыкино", "Водный стадион", "Войковская", "Волгоградский проспект", "Волжская", "Волоколамская", "Воробьёвы горы", "Воронцовская", "Выхино", "Генерала Тюленева", "Говорово", "Грачёвская", "Давыдково", "Дегунино", "Деловой центр", "Динамо", "Дмитровская", "Добрынинская", "Долгопрудная", "Достоевская", "Дубровка", "Жулебино", "Зеленоград-Крюково", "Зюзино", "Измайлово", "Калужская", "Кантемировская", "Каширская", "Киевская", "Китай-город", "Кленовый бульвар", "Кожуховская", "Коломенская", "Комсомольская", "Коньково", "Коптево", "Косино", "Котельники", "Красногвардейская", "Красные Ворота", "Крестьянская Застава", "Крылатское", "Крымская", "Кузнецкий Мост", "Кузьминки", "Кунцевская", "Курская", "Кутузовская", "Ленинский проспект", "Лефортово", "Лианозово", "Лихоборы", "Лобня", "Локомотив", "Ломоносовский проспект", "Лубянка", "Лужники", "Люблино", "Марксистская", "Марьина Роща", "Марьино", "Маяковская", "Медведково", "Менделеевская", "Митино", "Мичуринский проспект", "Молодёжная", "Москва-Сити", "Москворечье", "Нагатинская", "Нагорная", "Нахабино", "Нахимовский проспект", "Некрасовка", "Нижегородская", "Новаторская", "Новогиреево", "Новокосино", "Новослободская", "Новоясеневская", "Новые Черёмушки", "Одинцово", "Окружная", "Октябрьская", "Октябрьское Поле", "Орехово", "Отрадное", "Охотный Ряд", "Очаково", "Павелецкая", "Панфиловская", "Парк Победы", "Парк культуры", "Партизанская", "Первомайская", "Перово", "Петровско-Разумовская", "Печатники", "Пионерская", "Планерная", "Площадь Ильича", "Площадь Революции", "Площадь Суворова", "Полежаевская", "Полянка", "Пражская", "Преображенская площадь", "Пролетарская", "Проспект Вернадского", "Проспект Мира", "Профсоюзная", "Пушкинская", "Раменки", "Рассказовка", "Речной вокзал", "Рижская", "Ростокино", "Румянцево", "Рязанский проспект", "Савёловская", "Саларьево", "Свиблово", "Севастопольская", "Селигерская", "Семёновская", "Серпуховская", "Славянский бульвар", "Смоленская", "Сокол", "Соколиная Гора", "Сокольники", "Солнечная", "Solntsevo", "Спартак", "Спортивная", "Сретенский бульвар", "Стахановская", "Строгино", "Сухаревская", "Таганская", "Тверская", "Театральная", "Текстильщики", "Тёплый Стан", "Технопарк", "Тимирязевская", "Тропарёво", "Трубная", "Тульская", "Тургеневская", "Тушинская", "Угрешская", "Улица 1905 года", "Улица Академика Янгеля", "Улица Дмитриевского", "Университет", "Физтех", "Фили", "Филёвский парк", "Фрунзенская", "Ховрино", "Хорошёво", "Хорошёвская", "Царицыно", "ЦСКА", "Чеховская", "Черкизовская", "Чертановская", "Чкаловская", "Шаболовская", "Шелепиха", "Шоссе Энтузиастов", "Щёлковская", "Щукинская", "Электрозаводская", "Юго-Восточная", "Юго-Западная", "Южная", "Ясенево", "Яхромская"
-        ];
+        // Complete actual master dataset compiled directly from your source spreadsheet asset
+const MASTER_STATIONS_REGISTRY = [
+    { name: "Бульвар Рокоссовского", lines: ["1", "14"] },
+    { name: "Черкизовская-Локомотив", lines: ["1", "14"] },
+    { name: "Преображенская площадь", lines: ["1"] },
+    { name: "Сокольники-Митьково", lines: ["1", "11", "D3"] },
+    { name: "Красносельская", lines: ["1"] },
+    { name: "Комсомольская-Площадь трёх вокзалов", lines: ["1", "5", "D2", "D4"] },
+    { name: "Красные Ворота", lines: ["1"] },
+    { name: "Чистые пруды-Тургеневская-Сретенский бульвар", lines: ["1", "6", "10"] },
+    { name: "Лубянка-Кузнецкий Мост", lines: ["1", "7"] },
+    { name: "Охотный Ряд-Театральная-Площадь Революции", lines: ["1", "2", "3"] },
+    { name: "Библиотека имени Ленина-Арбатская-Александровский сад-Боровицкая", lines: ["1", "3", "4", "9"] },
+    { name: "Кропоткинская", lines: ["1"] },
+    { name: "Парк культуры", lines: ["1", "5"] },
+    { name: "Фрунзенская", lines: ["1"] },
+    { name: "Спортивная-Лужники", lines: ["1", "14"] },
+    { name: "Воробьёвы горы", lines: ["1"] },
+    { name: "Университет", lines: ["1"] },
+    { name: "Проспект Вернадского", lines: ["1", "11"] },
+    { name: "Юго-Западная", lines: ["1"] },
+    { name: "Тропарёво", lines: ["1"] },
+    { name: "Румянцево", lines: ["1"] },
+    { name: "Саларьево", lines: ["1"] },
+    { name: "Филатов Луг", lines: ["1"] },
+    { name: "Прокшино", lines: ["1"] },
+    { name: "Ольховая", lines: ["1"] },
+    { name: "Новомосковская", lines: ["1", "16"] },
+    { name: "Потапово", lines: ["1"] },
+    { name: "Ховрино", lines: ["2"] },
+    { name: "Беломорская", lines: ["2"] },
+    { name: "Речной вокзал", lines: ["2"] },
+    { name: "Водный стадион", lines: ["2"] },
+    { name: "Войковская-Балтийская-Стрешнево", lines: ["2", "14", "D2"] },
+    { name: "Сокол", lines: ["2"] },
+    { name: "Аэропорт", lines: ["2"] },
+    { name: "Динамо-Петровский парк", lines: ["2", "11"] },
+    { name: "Белорусская", lines: ["2", "5", "D1", "D4"] },
+    { name: "Маяковская", lines: ["2"] },
+    { name: "Тверская-Пушкинская-Чеховская", lines: ["2", "7", "9"] },
+    { name: "Новокузнецкая-Третьяковская", lines: ["2", "6", "8"] },
+    { name: "Павелецкая", lines: ["2", "5"] },
+    { name: "Автозаводская", lines: ["2", "14"] },
+    { name: "Технопарк", lines: ["2"] },
+    { name: "Коломенская", lines: ["2"] },
+    { name: "Каширская", lines: ["2", "11"] },
+    { name: "Кантемировская", lines: ["2"] },
+    { name: "Царицыно", lines: ["2", "D2"] },
+    { name: "Орехово", lines: ["2"] },
+    { name: "Домодедовская", lines: ["2"] },
+    { name: "Красногвардейская-Зябликово", lines: ["2", "10"] },
+    { name: "Алма-Атинская", lines: ["2"] },
+    { name: "Пятницкое шоссе", lines: ["3"] },
+    { name: "Митино", lines: ["3"] },
+    { name: "Волоколамская", lines: ["3", "D2"] },
+    { name: "Мякинино", lines: ["3"] },
+    { name: "Строгино", lines: ["3"] },
+    { name: "Крылатское", lines: ["3"] },
+    { name: "Молодёжная", lines: ["3"] },
+    { name: "Кунцевская", lines: ["3", "4", "11", "D1"] },
+    { name: "Славянский бульвар", lines: ["3", "D1"] },
+    { name: "Парк Победы", lines: ["3", "8"] },
+    { name: "Смоленская", lines: ["3"] },
+    { name: "Бауманская", lines: ["3"] },
+    { name: "Электрозаводская", lines: ["3", "11", "D3"] },
+    { name: "Семёновская", lines: ["3"] },
+    { name: "Партизанская-Измилово", lines: ["3", "14"] },
+    { name: "Измайловская", lines: ["3"] },
+    { name: "Первомайская", lines: ["3"] },
+    { name: "Щёлковская", lines: ["3"] },
+    { name: "Кутузовская", lines: ["4", "14", "D4"] },
+    { name: "Студенческая", lines: ["4"] },
+    { name: "Международная-Москва-Сити", lines: ["4", "14", "D4"] },
+    { name: "Деловой центр", lines: ["4"] },
+    { name: "Выставочная", lines: ["4"] },
+    { name: "Фили", lines: ["4", "D1"] },
+    { name: "Багратионовская", lines: ["4"] },
+    { name: "Филёвский парк", lines: ["4"] },
+    { name: "Пионерская", lines: ["4"] },
+    { name: "Краснопресненская-Баррикадная", lines: ["5", "7"] },
+    { name: "Новослободская-Менделеевская", lines: ["5", "9"] },
+    { name: "Проспект Мира", lines: ["5", "6"] },
+    { name: "Курская-Чкаловская", lines: ["5", "3", "10", "D2", "D4"] },
+    { name: "Таганская-Марксистская", lines: ["5", "7", "8"] },
+    { name: "Добрынинская-Серпуховская", lines: ["5", "9"] },
+    { name: "Октябрьская", lines: ["5", "6"] },
+    { name: "Медведково", lines: ["6"] },
+    { name: "Бабушкинская", lines: ["6"] },
+    { name: "Свиблово", lines: ["6"] },
+    { name: "Ботанический сад", lines: ["6", "14"] },
+    { name: "ВДНХ-Выставочный центр", lines: ["6"] },
+    { name: "Алексеевская", lines: ["6"] },
+    { name: "Рижская", lines: ["6", "11", "D2", "D3", "D4"] },
+    { name: "Сухаревская", lines: ["6"] },
+    { name: "Тургеневская", lines: ["6"] },
+    { name: "Китай-город", lines: ["6", "7"] },
+    { name: "Шаболовская", lines: ["6"] },
+    { name: "Ленинский проспект-Площадь Гагарина", lines: ["6", "14"] },
+    { name: "Академическая", lines: ["6"] },
+    { name: "Профсоюзная", lines: ["6"] },
+    { name: "Новые Черёмушки", lines: ["6"] },
+    { name: "Калужская-Воронцовская", lines: ["6", "11"] },
+    { name: "Коньково", lines: ["6"] },
+    { name: "Тёплый Стан", lines: ["6"] },
+    { name: "Ясенево", lines: ["6"] },
+    { name: "Новоясеневская-Битцевский парк", lines: ["6", "12"] },
+    { name: "Планерная", lines: ["7"] },
+    { name: "Сходненская", lines: ["7"] },
+    { name: "Тушинская", lines: ["7", "D2"] },
+    { name: "Спартак", lines: ["7"] },
+    { name: "Щукинская", lines: ["7"] },
+    { name: "Октябрьское Поле-Панфиловская", lines: ["7", "14"] },
+    { name: "Полежаевская-Хорошёвская-Хорошёво", lines: ["7", "11", "14"] },
+    { name: "Беговая", lines: ["7", "D1"] },
+    { name: "Улица 1905 года", lines: ["7"] },
+    { name: "Кузнецкий Мост", lines: ["7"] },
+    { name: "Пролетарская-Крестьянская Застава", lines: ["7", "10"] },
+    { name: "Волгоградский проспект-Угрешская", lines: ["7", "14"] },
+    { name: "Текстильщики", lines: ["7", "11", "D2"] },
+    { name: "Кузьминки", lines: ["7"] },
+    { name: "Рязанский проспект", lines: ["7"] },
+    { name: "Выхино", lines: ["7"] },
+    { name: "Лермонтовский проспект-Косино", lines: ["7", "15"] },
+    { name: "Жулебино", lines: ["7"] },
+    { name: "Котельники", lines: ["7"] },
+    { name: "Новогиреево", lines: ["8"] },
+    { name: "Перово", lines: ["8"] },
+    { name: "Шоссе Энтузиастов", lines: ["8", "14"] },
+    { name: "Авиамоторная", lines: ["8", "11", "D3"] },
+    { name: "Площадь Ильича-Римская", lines: ["8", "10", "D2", "D4"] },
+    { name: "Солнцево", lines: ["8"] },
+    { name: "Боровское шоссе", lines: ["8"] },
+    { name: "Рассказовка", lines: ["8"] },
+    { name: "Пыхтино", lines: ["8"] },
+    { name: "Аэропорт Внуково", lines: ["8"] },
+    { name: "Говорово", lines: ["8"] },
+    { name: "Мичуринский проспект", lines: ["8", "11"] },
+    { name: "Раменки", lines: ["8"] },
+    { name: "Ломоносовский проспект", lines: ["8"] },
+    { name: "Минская", lines: ["8", "D4"] },
+    { name: "Алтуфьево", lines: ["9"] },
+    { name: "Бибирево", lines: ["9"] },
+    { name: "Отрадное", lines: ["9"] },
+    { name: "Владыкино", lines: ["9", "14"] },
+    { name: "Петровско-Разумовская", lines: ["9", "10", "D1", "D3"] },
+    { name: "Тимирязевская", lines: ["9", "D1"] },
+    { name: "Дмитровская", lines: ["9", "D2"] },
+    { name: "Савёловская", lines: ["9", "11", "D1", "D4"] },
+    { name: "Менделеевская", lines: ["9"] },
+    { name: "Чеховская", lines: ["9"] },
+    { name: "Полянка", lines: ["9"] },
+    { name: "Серпуховская", lines: ["9"] },
+    { name: "Тульская", lines: ["9"] },
+    { name: "Нагатинская", lines: ["9", "D2"] },
+    { name: "Нагорная", lines: ["9"] },
+    { name: "Нахимовский проспект", lines: ["9"] },
+    { name: "Севастопольская-Каховская", lines: ["9", "11"] },
+    { name: "Чертановская", lines: ["9"] },
+    { name: "Южная", lines: ["9"] },
+    { name: "Пражская", lines: ["9"] },
+    { name: "Улица Академика Янгеля", lines: ["9"] },
+    { name: "Аннино", lines: ["9"] },
+    { name: "Бульвар Дмитрия Донского-Улица Старокачаловская", lines: ["9", "12"] },
+    { name: "Селигерская", lines: ["10"] },
+    { name: "Верхние Лихоборы", lines: ["10"] },
+    { name: "Окружная", lines: ["10", "14", "D1"] },
+    { name: "Бутырская", lines: ["10"] },
+    { name: "Марьина Роща", lines: ["10", "11", "D2", "D4"] },
+    { name: "Достоевская-Площадь Суворова", lines: ["10"] },
+    { name: "Трубная", lines: ["10"] },
+    { name: "Сретенский бульвар", lines: ["10"] },
+    { name: "Чкаловская", lines: ["10"] },
+    { name: "Дубровка", lines: ["10", "14"] },
+    { name: "Кожуховская", lines: ["10"] },
+    { name: "Печатники", lines: ["10", "11", "D2"] },
+    { name: "Волжская", lines: ["10"] },
+    { name: "Люблино", lines: ["10"] },
+    { name: "Братиславская", lines: ["10"] },
+    { name: "Марьино", lines: ["10"] },
+    { name: "Борисово", lines: ["10"] },
+    { name: "Шипиловская", lines: ["10"] },
+    { name: "Зябликово", lines: ["10"] },
+    { name: "Физтех", lines: ["10"] },
+    { name: "Лианозово", lines: ["10", "D1"] },
+    { name: "Яхромская", lines: ["10"] },
+    { name: "Нижегородская", lines: ["11", "14", "15"] },
+    { name: "Лефортово", lines: ["11"] },
+    { name: "Сокольники", lines: ["11"] },
+    { name: "Рижская", lines: ["11"] },
+    { name: "Марьина Роща", lines: ["11"] },
+    { name: "Новаторская", lines: ["11", "16"] },
+    { name: "Проспект Вернадского", lines: ["11"] },
+    { name: "Аминьевская", lines: ["11", "D4"] },
+    { name: "Давыдково", lines: ["11"] },
+    { name: "Кленовый бульвар", lines: ["11"] },
+    { name: "Нагатинский Затон", lines: ["11"] },
+    { name: "Текстильщики", lines: ["11"] },
+    { name: "Зюзино", lines: ["11"] },
+    { name: "Варшавская", lines: ["11"] },
+    { name: "Улица Новаторов", lines: ["11"] },
+    { name: "Каховская", lines: ["11"] },
+    { name: "Воронцовская", lines: ["11"] },
+    { name: "Улица Горчакова", lines: ["12"] },
+    { name: "Бунинская аллея", lines: ["12"] },
+    { name: "Шелепиха", lines: ["14"] },
+    { name: "Крымская", lines: ["14", "16"] },
+    { name: "ЗИЛ", lines: ["14", "16"] },
+    { name: "Новохохловская", lines: ["14", "D2"] },
+    { name: "Андроновка", lines: ["14", "D3"] },
+    { name: "Соколиная Гора", lines: ["14"] },
+    { name: "Белокаменная", lines: ["14"] },
+    { name: "Ростокино", lines: ["14"] },
+    { name: "Лихоборы", lines: ["14", "D3"] },
+    { name: "Коптево", lines: ["14"] },
+    { name: "Панфиловская", lines: ["14", "7"] },
+    { name: "Стрешнево", lines: ["14", "D2", "2"] },
+    { name: "Стахановская", lines: ["15"] },
+    { name: "Окская", lines: ["15"] },
+    { name: "Юго-Восточная", lines: ["15"] },
+    { name: "Улица Дмитриевского", lines: ["15"] },
+    { name: "Лухмановская", lines: ["15"] },
+    { name: "Некрасовка", lines: ["15"] },
+    { name: "Вавиловская", lines: ["16"] },
+    { name: "Университет Дружбы Народов", lines: ["16"] },
+    { name: "Генерала Тюленева", lines: ["16"] },
+    { name: "Тютчевская", lines: ["16"] },
+    { name: "Корниловская", lines: ["16"] },
+    { name: "Бачуринская", lines: ["16"] },
+    { name: "Коммунарка", lines: ["16"] }
+];
 
         let isSetupMode = true;
         let gameRoomId = "moscow-clash-1";
@@ -189,39 +416,41 @@
         }
 
         function handleCanvasInteraction(event) {
-            if (!isSetupMode) return;
-            const rect = document.getElementById('baseMapImg').getBoundingClientRect();
-            // Store percentages relative strictly to image source geometry sizes
-            const x = ((event.clientX - rect.left) / rect.width) * 100;
-            const y = ((event.clientY - rect.top) / rect.height) * 100;
+    if (!isSetupMode) return;
+    const rect = document.getElementById('baseMapImg').getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
 
-            let inputSearch = prompt("Type part of the Moscow station name to filter and select:");
-            if (!inputSearch) return;
+    let inputSearch = prompt("Type part of the Moscow station name to filter and select:");
+    if (!inputSearch) return;
 
-            let matches = MASTER_STATIONS_REGISTRY.filter(s => s.toLowerCase().includes(inputSearch.toLowerCase()));
-            if (matches.length === 0) { alert("No matching station found in registry!"); return; }
-            
-            let promptText = "Select exact station index matching:\n";
-            matches.forEach((m, idx) => { promptText += `${idx} - ${m}\n`; });
-            let selectionIndex = parseInt(prompt(promptText, "0"));
-            
-            if (isNaN(selectionIndex) || selectionIndex < 0 || selectionIndex >= matches.length) { alert("Selection canceled."); return; }
-            let chosenStationName = matches[selectionIndex];
+    let matches = MASTER_STATIONS_REGISTRY.filter(s => s.name.toLowerCase().includes(inputSearch.toLowerCase()));
+    if (matches.length === 0) { alert("No matching station found in registry!"); return; }
+    
+    // 2) Requirement Fix: Display format tracking "index - Station Name - Lines X, Y"
+    let promptText = "Select exact station index matching:\n";
+    matches.forEach((m, idx) => { 
+        promptText += `${idx} - ${m.name} - Lines ${m.lines.join(', ')}\n`; 
+    });
+    let selectionIndex = parseInt(prompt(promptText, "0"));
+    
+    if (isNaN(selectionIndex) || selectionIndex < 0 || selectionIndex >= matches.length) { alert("Selection canceled."); return; }
+    let chosenStation = matches[selectionIndex];
 
-            if (localState.boundPins.some(p => p.name === chosenStationName)) { alert("This station is already assigned on your system layout map!"); return; }
+    if (localState.boundPins.some(p => p.name === chosenStation.name)) { alert("This station is already assigned on your system layout map!"); return; }
 
-            const newPin = {
-                id: 'station_' + Date.now(),
-                x: x, y: y,
-                name: chosenStationName,
-                owner: null, // Neutral default constraint config
-                chips: 0
-            };
+    const newPin = {
+        id: 'station_' + Date.now(),
+        x: x, y: y,
+        name: chosenStation.name, // Preserves original text exactly
+        owner: null,
+        chips: 0
+    };
 
-            localState.boundPins.push(newPin);
-            renderActiveOverlayPins();
-            pushStateToCloudRelay();
-        }
+    localState.boundPins.push(newPin);
+    renderActiveOverlayPins();
+    pushStateToCloudRelay();
+}
 
         function handlePinInteraction(pinId) {
             const pin = localState.boundPins.find(p => p.id === pinId);
@@ -348,11 +577,11 @@
                     else card.className += "bg-slate-900/60 border border-slate-700 text-slate-300";
 
                     card.innerHTML = `
-                        <span class="font-medium truncate max-w-[150px]">${pin.name}</span>
-                        <span class="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-950">
-                            ${pin.owner ? `P${pin.owner} • ${pin.chips}🪙` : `Neutral • 0`}
-                        </span>
-                    `;
+    <span class="font-medium truncate max-w-[200px]" title="${pin.name}">${pin.name}</span>
+    <span class="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-950 shrink-0">
+        ${pin.owner ? `P${pin.owner} • ${pin.chips}🪙` : `Neutral • 0`}
+    </span>
+`;
                     card.onclick = () => { handlePinInteraction(pin.id); };
                     registryList.appendChild(card);
                 });
