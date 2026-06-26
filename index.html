@@ -57,7 +57,7 @@
     <div class="bg-slate-950 p-2 text-xs border-b border-slate-800 flex flex-wrap justify-between items-center px-4 gap-2">
         <div class="flex flex-wrap items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse" id="sync-indicator"></span>
-            <input type="text" id="room-id-input" placeholder="Shared Room Name" class="bg-slate-800 border border-slate-700 px-2 py-1 rounded text-slate-200 w-40 focus:outline-none focus:border-teal-500" value="moscow-clash-1">
+            <input type="text" id="room-id-input" placeholder="Shared Room Name" class="bg-slate-800 border border-slate-700 px-2 py-1 rounded text-slate-200 w-40 focus:outline-none focus:border-teal-500">
             
             <label class="text-slate-400 font-medium ml-2">Your Role:</label>
             <select id="role-selector" onchange="handleRoleChange()" class="bg-slate-800 border border-slate-700 px-2 py-1 rounded text-slate-200 focus:outline-none focus:border-teal-500">
@@ -134,6 +134,25 @@
             </h3>
             <div id="registry-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-xs">
                 <div class="text-slate-500 italic col-span-full py-2">No stations assigned to map yet. Select Admin role above to add locations.</div>
+            </div>
+        </section>
+
+        <section class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
+            <h3 class="text-xs font-bold uppercase tracking-widest text-purple-400 mb-3">Map State Transfer</h3>
+            <div class="flex flex-wrap gap-2 justify-center">
+                <button onclick="exportMapState()" class="bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded font-bold text-white transition text-sm flex items-center gap-2">
+                    <span>📥 Export Map State</span>
+                </button>
+                <button onclick="importMapState()" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded font-bold text-white transition text-sm flex items-center gap-2">
+                    <span>📤 Import Map State</span>
+                </button>
+                <button onclick="clearMapState()" class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded font-bold text-white transition text-sm flex items-center gap-2">
+                    <span>🗑️ Clear All Stations</span>
+                </button>
+            </div>
+            <div id="export-preview" class="mt-3 hidden bg-slate-900 p-3 rounded border border-slate-600 max-h-32 overflow-y-auto">
+                <p class="text-[10px] text-slate-400 mb-2 font-mono">Export Preview (copy this data):</p>
+                <pre id="export-text" class="text-[9px] text-slate-300 font-mono whitespace-pre-wrap break-words"></pre>
             </div>
         </section>
     </main>
@@ -443,7 +462,6 @@
 
         function handleRoleChange() {
             currentRole = document.getElementById('role-selector').value;
-            const badge = document.getElementById('mode-status-badge');
             const hint = document.getElementById('status-hint');
 
             if (currentRole === 'admin') {
@@ -533,7 +551,7 @@
                     let requiredMinFlip = pin.chips + 1;
                     let allowedMaxFlip = pin.chips + 5;
                     
-                    let flipStakeInput = parseInt(prompt(`Station is held by enemy. Enter total chip stake to flip and fortify this asset (Enforced boundary limits: ${requiredMinFlip} to ${allowedMaxFlip} total chips):`, requiredMinFlip.toString()));
+                    let flipStakeInput = parseInt(prompt(`Station is held by enemy. Enter total chip stake to flip and fortify this asset (Enforced boundary limits: ${requiredMinFlip} to ${allowedMaxFlip}):\n(You currently have ${localState.players[actingPlayerNum].chips} chips)`, `${requiredMinFlip}`));
                     
                     if (isNaN(flipStakeInput) || flipStakeInput < requiredMinFlip || flipStakeInput > allowedMaxFlip) {
                         alert(`Error: Flip stake fails validation bounds! Input must be between ${requiredMinFlip} and ${allowedMaxFlip} total chips.`);
@@ -633,6 +651,65 @@
             renderActiveOverlayPins();
         }
 
+        // --- EXPORT/IMPORT MAP STATE ---
+
+        function exportMapState() {
+            const exportData = {
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                gameState: localState
+            };
+            
+            const jsonString = JSON.stringify(exportData, null, 2);
+            const preview = document.getElementById('export-text');
+            const previewContainer = document.getElementById('export-preview');
+            
+            preview.textContent = jsonString;
+            previewContainer.classList.remove('hidden');
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(jsonString).then(() => {
+                alert('✅ Map state copied to clipboard! Paste it into another device to import.');
+            }).catch(() => {
+                alert('Map state ready to copy from the preview below (select and copy manually if needed).');
+            });
+        }
+
+        function importMapState() {
+            const importText = prompt('Paste the exported map state JSON here:');
+            if (!importText) return;
+            
+            try {
+                const importedData = JSON.parse(importText);
+                
+                if (!importedData.gameState || !Array.isArray(importedData.gameState.boundPins)) {
+                    alert('❌ Invalid map state format!');
+                    return;
+                }
+                
+                if (confirm('🔄 This will replace your current map state. Continue?')) {
+                    localState = importedData.gameState;
+                    updateCalculationsAndRegistry();
+                    alert('✅ Map state imported successfully!');
+                    pushStateToCloudRelay();
+                }
+            } catch (e) {
+                alert(`❌ Error parsing map state: ${e.message}`);
+            }
+        }
+
+        function clearMapState() {
+            if (confirm('⚠️ Clear all stations? This cannot be undone.')) {
+                if (confirm('⚠️ Are you absolutely sure?')) {
+                    localState.boundPins = [];
+                    localState.players = { 1: { chips: 20, stationsCount: 0 }, 2: { chips: 20, stationsCount: 0 } };
+                    updateCalculationsAndRegistry();
+                    pushStateToCloudRelay();
+                    alert('✅ All stations cleared.');
+                }
+            }
+        }
+
         // --- DATABASE SYNC ENGINE CONTROLS ---
 
         async function initializeLiveSync() {
@@ -643,125 +720,112 @@
             document.getElementById('sync-status-text').textContent = "Sync active";
             document.getElementById('sync-status-text').className = "text-emerald-400 font-mono";
 
-            // Clear any old engines running in the background to prevent data pile-ups
             if (syncIntervalId) {
                 clearInterval(syncIntervalId);
             }
             
-            // 1. Immediately request current data from the central database
             await pullStateFromCloudRelay();
-
-            // 2. Set up an infinite background look loop that checks every 2 seconds
             syncIntervalId = setInterval(pullStateFromCloudRelay, 2000);
         }
 
-        // Minimal improved functions — paste into your script replacing the old push/pull functions.
-
-async function getGitHubTokenInteractive() {
-  let token = sessionStorage.getItem('gh_token');
-  if (!token) {
-    token = prompt('Enter a GitHub Personal Access Token (repo or public_repo scope):');
-    if (!token) return null;
-    sessionStorage.setItem('gh_token', token); // temporary, only sessionStorage
-  }
-  return token;
-}
-
-async function pushStateToCloudRelay() {
-  try {
-    const token = await getGitHubTokenInteractive();
-    if (!token) return;
-
-    const path = 'game-state.json';
-    const url = `https://api.github.com/repos/maxshark929599-wq/moscow-transit-rush/contents/${path}`;
-
-    const body = {
-      message: 'Update game state',
-      content: btoa(JSON.stringify(localState))
-    };
-    // Only include sha when we already know it (update case)
-    if (typeof currentSha === 'string' && currentSha.length) body.sha = currentSha;
-
-    let response = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `token ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
-
-    // If file didn't exist before, GitHub returns 201 (created); update returns 200.
-    if (response.ok) {
-      const data = await response.json();
-      // store blob sha for next update — data.content.sha is the blob's sha
-      currentSha = data.content && data.content.sha ? data.content.sha : data.sha || currentSha;
-      console.log('Pushed state to GitHub, new sha:', currentSha);
-      return true;
-    }
-
-    // 409 Conflict — need to fetch current sha and retry
-    if (response.status === 409) {
-      console.warn('Conflict writing file — fetching current sha and retrying');
-      const head = await fetch(url);
-      if (head.ok) {
-        const headData = await head.json();
-        currentSha = headData.sha;
-        body.sha = currentSha;
-        response = await fetch(url, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `token ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(body)
-        });
-        if (response.ok) {
-          const data = await response.json();
-          currentSha = data.content && data.content.sha ? data.content.sha : data.sha || currentSha;
-          return true;
+        async function getGitHubTokenInteractive() {
+          let token = sessionStorage.getItem('gh_token');
+          if (!token) {
+            token = prompt('Enter a GitHub Personal Access Token (repo or public_repo scope):');
+            if (!token) return null;
+            sessionStorage.setItem('gh_token', token);
+          }
+          return token;
         }
-      }
-    }
 
-    // other errors: log details
-    const text = await response.text();
-    console.warn('Failed to push state to GitHub:', response.status, text);
-    return false;
-  } catch (err) {
-    console.warn('Push to GitHub failed:', err);
-    return false;
-  }
-}
+        async function pushStateToCloudRelay() {
+          try {
+            const token = await getGitHubTokenInteractive();
+            if (!token) return;
 
-async function pullStateFromCloudRelay() {
-  try {
-    const path = 'game-state.json';
-    const url = `https://api.github.com/repos/maxshark929599-wq/moscow-transit-rush/contents/${path}`;
+            const path = 'game-state.json';
+            const url = `https://api.github.com/repos/maxshark929599-wq/moscow-transit-rush/contents/${path}`;
 
-    const response = await fetch(url);
-    if (response.status === 404) {
-      // File doesn't exist yet — nothing to pull. You may want to create it by pushing local state.
-      console.info('No game-state.json found in repo (first-run).');
-      return;
-    }
-    if (!response.ok) {
-      console.warn('Failed to fetch game-state.json:', response.status);
-      return;
-    }
+            const body = {
+              message: 'Update game state',
+              content: btoa(JSON.stringify(localState))
+            };
+            if (typeof currentSha === 'string' && currentSha.length) body.sha = currentSha;
 
-    const data = await response.json();
-    const decoded = JSON.parse(atob(data.content.replace(/\n/g, '')));
-    if (decoded && decoded.players && Array.isArray(decoded.boundPins) !== undefined) {
-      localState = decoded;
-      // store the blob sha for later updates
-      currentSha = data.sha || (data.content && data.content.sha) || currentSha;
-      updateCalculationsAndRegistry();
-    }
-  } catch (err) {
-    console.warn('Pull from GitHub failed:', err);
-  }
-}
+            let response = await fetch(url, {
+              method: 'PUT',
+              headers: {
+                'Authorization': `token ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(body)
+            });
+
+            if (response.ok) {
+              const data = await response.json();
+              currentSha = data.content && data.content.sha ? data.content.sha : data.sha || currentSha;
+              console.log('Pushed state to GitHub, new sha:', currentSha);
+              return true;
+            }
+
+            if (response.status === 409) {
+              console.warn('Conflict writing file — fetching current sha and retrying');
+              const head = await fetch(url);
+              if (head.ok) {
+                const headData = await head.json();
+                currentSha = headData.sha;
+                body.sha = currentSha;
+                response = await fetch(url, {
+                  method: 'PUT',
+                  headers: {
+                    'Authorization': `token ${token}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(body)
+                });
+                if (response.ok) {
+                  const data = await response.json();
+                  currentSha = data.content && data.content.sha ? data.content.sha : data.sha || currentSha;
+                  return true;
+                }
+              }
+            }
+
+            const text = await response.text();
+            console.warn('Failed to push state to GitHub:', response.status, text);
+            return false;
+          } catch (err) {
+            console.warn('Push to GitHub failed:', err);
+            return false;
+          }
+        }
+
+        async function pullStateFromCloudRelay() {
+          try {
+            const path = 'game-state.json';
+            const url = `https://api.github.com/repos/maxshark929599-wq/moscow-transit-rush/contents/${path}`;
+
+            const response = await fetch(url);
+            if (response.status === 404) {
+              console.info('No game-state.json found in repo (first-run).');
+              return;
+            }
+            if (!response.ok) {
+              console.warn('Failed to fetch game-state.json:', response.status);
+              return;
+            }
+
+            const data = await response.json();
+            const decoded = JSON.parse(atob(data.content.replace(/\n/g, '')));
+            if (decoded && decoded.players && Array.isArray(decoded.boundPins) !== undefined) {
+              localState = decoded;
+              currentSha = data.sha || (data.content && data.content.sha) || currentSha;
+              updateCalculationsAndRegistry();
+            }
+          } catch (err) {
+            console.warn('Pull from GitHub failed:', err);
+          }
+        }
     </script>
 </body>
 </html>
