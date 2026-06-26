@@ -50,6 +50,26 @@
             transition: transform 0.15s;
         }
         .station-pin:hover { transform: translate(-50%, -50%) scale(1.25); }
+
+        .challenge-icon {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: transform 0.15s, filter 0.1s;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+        }
+        .challenge-icon:hover { transform: scale(1.3); filter: drop-shadow(0 3px 8px rgba(0,0,0,1)); }
+        
+        .challenge-icon.failed {
+            opacity: 0.6;
+            filter: grayscale(0.5) drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+        }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-100 font-sans antialiased select-none">
@@ -134,6 +154,24 @@
             </h3>
             <div id="registry-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-xs">
                 <div class="text-slate-500 italic col-span-full py-2">No stations assigned to map yet. Select Admin role above to add locations.</div>
+            </div>
+        </section>
+
+        <section class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
+            <h3 class="text-xs font-bold uppercase tracking-widest text-yellow-400 mb-3 flex justify-between items-center">
+                <span>Active Challenges Registry</span>
+                <span id="challenges-counter" class="bg-slate-900 text-slate-400 px-2 py-0.5 rounded text-[10px] font-mono">0 Active</span>
+            </h3>
+            <div class="flex flex-wrap gap-2 justify-center mb-3">
+                <button onclick="generateChallenges()" class="bg-yellow-600 hover:bg-yellow-500 px-4 py-2 rounded font-bold text-white transition text-sm flex items-center gap-2">
+                    <span>🎲 Generate 4 Challenges</span>
+                </button>
+                <button onclick="clearChallenges()" class="bg-red-600 hover:bg-red-500 px-4 py-2 rounded font-bold text-white transition text-sm flex items-center gap-2">
+                    <span>🗑️ Clear Challenges</span>
+                </button>
+            </div>
+            <div id="challenges-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-xs">
+                <div class="text-slate-500 italic col-span-full py-2">No challenges generated yet. Click "Generate 4 Challenges" to begin.</div>
             </div>
         </section>
 
@@ -423,15 +461,90 @@
             { name: "Кусково", lines: ["D4"] }
         ];
 
+        const MASTER_CHALLENGES_REGISTRY = [
+            { 
+                id: 'challenge_1',
+                station: "Красные Ворота",
+                type: "challenge30",
+                name: "Challenge 30+50",
+                baseReward: 5,
+                maxReward: 8,
+                icon: "30",
+                description: "Complete the challenge: Count 30 items + 50 bonus!"
+            },
+            {
+                id: 'challenge_2',
+                station: "Парк культуры",
+                type: "steal45",
+                name: "Steal45",
+                baseReward: 3,
+                maxReward: 6,
+                icon: "💜",
+                description: "Steal challenge: Attempt to steal chips from opponent (45% success)"
+            },
+            {
+                id: 'challenge_3',
+                station: "Белорусская",
+                type: "variable",
+                name: "Variable Challenge",
+                baseReward: 4,
+                maxReward: 7,
+                icon: "?",
+                description: "Random variable challenge with uncertain rewards"
+            },
+            {
+                id: 'challenge_4',
+                station: "Охотный Ряд-Театральная-Площадь Революции",
+                type: "challenge30",
+                name: "Challenge 30",
+                baseReward: 5,
+                maxReward: 8,
+                icon: "30",
+                description: "Standard challenge: Count 30 and earn rewards"
+            },
+            {
+                id: 'challenge_5',
+                station: "Фрунзенская",
+                type: "challenge30",
+                name: "Challenge 30+50",
+                baseReward: 5,
+                maxReward: 8,
+                icon: "30",
+                description: "Challenge with 30 base items plus 50 bonus points"
+            },
+            {
+                id: 'challenge_6',
+                station: "Университет",
+                type: "variable",
+                name: "Variable+ Challenge",
+                baseReward: 6,
+                maxReward: 9,
+                icon: "?",
+                description: "Advanced variable challenge with higher stakes"
+            },
+            {
+                id: 'challenge_7',
+                station: "Каширская",
+                type: "steal45",
+                name: "Steal+",
+                baseReward: 4,
+                maxReward: 7,
+                icon: "💜",
+                description: "Enhanced steal challenge with better odds"
+            }
+        ];
+
         let currentRole = "player1"; 
         let gameRoomId = "moscow-clash-1";
         
         let localState = {
             players: { 1: { chips: 20, stationsCount: 0 }, 2: { chips: 20, stationsCount: 0 } },
-            boundPins: []
+            boundPins: [],
+            activeChallenges: []
         };
 
         let syncIntervalId = null;
+        let currentSha = null;
 
         document.addEventListener("DOMContentLoaded", () => {
             applyZoomFactor();
@@ -441,7 +554,7 @@
             const slider = document.getElementById('mapFrame');
             let isDown = false; let startX, startY, scrollLeft, scrollTop;
             slider.addEventListener('mousedown', (e) => {
-                if (e.target.closest('.station-pin')) return;
+                if (e.target.closest('.station-pin') || e.target.closest('.challenge-icon')) return;
                 isDown = true; startX = e.pageX - slider.offsetLeft; startY = e.pageY - slider.offsetTop;
                 scrollLeft = slider.scrollLeft; scrollTop = slider.scrollTop;
             });
@@ -467,7 +580,7 @@
             if (currentRole === 'admin') {
                 hint.textContent = "Admin Control: Click on map canvas locations to drop predefined stations.";
             } else {
-                hint.textContent = `Active Role: ${currentRole === 'player1' ? 'Player 1' : 'Player 2'}. Click existing station markers to claim, flip, or track rent.`;
+                hint.textContent = `Active Role: ${currentRole === 'player1' ? 'Player 1' : 'Player 2'}. Click existing station markers to claim, flip, or track rent. Click challenge icons to attempt challenges.`;
             }
             renderActiveOverlayPins();
         }
@@ -551,7 +664,7 @@
                     let requiredMinFlip = pin.chips + 1;
                     let allowedMaxFlip = pin.chips + 5;
                     
-                    let flipStakeInput = parseInt(prompt(`Station is held by enemy. Enter total chip stake to flip and fortify this asset (Enforced boundary limits: ${requiredMinFlip} to ${allowedMaxFlip}):\n(You currently have ${localState.players[actingPlayerNum].chips} chips)`, `${requiredMinFlip}`));
+                    let flipStakeInput = parseInt(prompt(`Station is held by enemy. Enter total chip stake to flip and fortify this asset (Enforced boundary limits: ${requiredMinFlip} to ${allowedMaxFlip}):`, "" + requiredMinFlip)) || requiredMinFlip;
                     
                     if (isNaN(flipStakeInput) || flipStakeInput < requiredMinFlip || flipStakeInput > allowedMaxFlip) {
                         alert(`Error: Flip stake fails validation bounds! Input must be between ${requiredMinFlip} and ${allowedMaxFlip} total chips.`);
@@ -582,10 +695,148 @@
             pushStateToCloudRelay();
         }
 
+        function handleChallengeInteraction(challengeId) {
+            if (currentRole === 'admin') {
+                alert("Players only! Switch to Player 1 or Player 2 to interact with challenges.");
+                return;
+            }
+
+            const challenge = localState.activeChallenges.find(c => c.id === challengeId);
+            if (!challenge) return;
+
+            const actingPlayerNum = currentRole === 'player1' ? 1 : 2;
+            const opposingPlayerNum = actingPlayerNum === 1 ? 2 : 1;
+
+            let challengePrompt = `CHALLENGE: ${challenge.name}\n`;
+            challengePrompt += `Station: ${challenge.station}\n`;
+            challengePrompt += `Type: ${challenge.type}\n\n`;
+            challengePrompt += `${challenge.description}\n\n`;
+            challengePrompt += `Current Reward: ${challenge.baseReward} to ${challenge.maxReward} chips\n`;
+            challengePrompt += `Failures: P1=${challenge.failedByPlayer1 ? 'YES' : 'NO'} | P2=${challenge.failedByPlayer2 ? 'YES' : 'NO'}\n\n`;
+            challengePrompt += `Choose:\n1 - Complete Challenge (WIN)\n2 - Fail Challenge\n3 - Cancel`;
+
+            let selection = prompt(challengePrompt);
+            if (!selection || selection === "3") return;
+
+            if (selection === "1") {
+                // SUCCESS: Remove challenge and spawn a new random one
+                let reward = challenge.baseReward + Math.floor(Math.random() * (challenge.maxReward - challenge.baseReward + 1));
+                localState.players[actingPlayerNum].chips += reward;
+                alert(`✅ Challenge completed! Player ${actingPlayerNum} earned ${reward} chips!`);
+                
+                localState.activeChallenges = localState.activeChallenges.filter(c => c.id !== challengeId);
+                spawnNewRandomChallenge();
+                
+            } else if (selection === "2") {
+                // FAILURE: Mark failure for this player
+                if (actingPlayerNum === 1) {
+                    challenge.failedByPlayer1 = true;
+                } else {
+                    challenge.failedByPlayer2 = true;
+                }
+                
+                // If BOTH players failed AND it's not a steal challenge, remove and spawn new
+                if (challenge.failedByPlayer1 && challenge.failedByPlayer2 && challenge.type !== 'steal45') {
+                    alert(`❌ Challenge failed! Both players failed. Challenge disappears.`);
+                    localState.activeChallenges = localState.activeChallenges.filter(c => c.id !== challengeId);
+                    spawnNewRandomChallenge();
+                } else if (challenge.type === 'steal45') {
+                    // Steal challenge: increase reward for next player
+                    challenge.baseReward += 1;
+                    challenge.maxReward += 1;
+                    alert(`❌ Challenge failed! Reward increased for opponent: ${challenge.baseReward}-${challenge.maxReward} chips`);
+                } else {
+                    // Non-steal: just increase reward
+                    challenge.baseReward += 1;
+                    challenge.maxReward += 1;
+                    alert(`❌ Challenge failed! Reward increased for next player: ${challenge.baseReward}-${challenge.maxReward} chips`);
+                }
+            }
+
+            updateCalculationsAndRegistry();
+            pushStateToCloudRelay();
+        }
+
+        function generateChallenges() {
+            if (localState.activeChallenges.length > 0) {
+                alert("Challenges already active! Clear them first with 'Clear Challenges' button.");
+                return;
+            }
+
+            let randomChallenges = [];
+            let usedIds = new Set();
+
+            // Select 4 random unique challenges from the registry
+            while (randomChallenges.length < 4 && usedIds.size < MASTER_CHALLENGES_REGISTRY.length) {
+                let randomIdx = Math.floor(Math.random() * MASTER_CHALLENGES_REGISTRY.length);
+                if (!usedIds.has(randomIdx)) {
+                    usedIds.add(randomIdx);
+                    let templateChallenge = MASTER_CHALLENGES_REGISTRY[randomIdx];
+                    let newChallenge = {
+                        id: 'active_' + templateChallenge.id + '_' + Date.now(),
+                        station: templateChallenge.station,
+                        type: templateChallenge.type,
+                        name: templateChallenge.name,
+                        baseReward: templateChallenge.baseReward,
+                        maxReward: templateChallenge.maxReward,
+                        icon: templateChallenge.icon,
+                        description: templateChallenge.description,
+                        failedByPlayer1: false,
+                        failedByPlayer2: false,
+                        stationPin: localState.boundPins.find(p => p.name === templateChallenge.station)
+                    };
+                    randomChallenges.push(newChallenge);
+                }
+            }
+
+            localState.activeChallenges = randomChallenges;
+            alert(`🎲 Generated ${randomChallenges.length} challenges!`);
+            updateCalculationsAndRegistry();
+            pushStateToCloudRelay();
+        }
+
+        function spawnNewRandomChallenge() {
+            // Pick a random challenge from registry that isn't already active
+            let activeStations = new Set(localState.activeChallenges.map(c => c.station));
+            let availableChallenges = MASTER_CHALLENGES_REGISTRY.filter(c => !activeStations.has(c.station));
+            
+            if (availableChallenges.length === 0) {
+                console.log("No more unique challenges available");
+                return;
+            }
+
+            let randomTemplate = availableChallenges[Math.floor(Math.random() * availableChallenges.length)];
+            let newChallenge = {
+                id: 'active_' + randomTemplate.id + '_' + Date.now(),
+                station: randomTemplate.station,
+                type: randomTemplate.type,
+                name: randomTemplate.name,
+                baseReward: randomTemplate.baseReward,
+                maxReward: randomTemplate.maxReward,
+                icon: randomTemplate.icon,
+                description: randomTemplate.description,
+                failedByPlayer1: false,
+                failedByPlayer2: false,
+                stationPin: localState.boundPins.find(p => p.name === randomTemplate.station)
+            };
+
+            localState.activeChallenges.push(newChallenge);
+            console.log("Spawned new challenge:", newChallenge.name);
+        }
+
+        function clearChallenges() {
+            if (confirm("🗑️ Clear all active challenges?")) {
+                localState.activeChallenges = [];
+                updateCalculationsAndRegistry();
+                pushStateToCloudRelay();
+            }
+        }
+
         function renderActiveOverlayPins() {
             const container = document.getElementById('pins-interaction-layer');
             container.innerHTML = '';
 
+            // Render station pins
             localState.boundPins.forEach(pin => {
                 let node = document.createElement('div');
                 node.className = 'station-pin';
@@ -604,6 +855,24 @@
                 node.title = pin.name;
                 node.onclick = (e) => { e.stopPropagation(); handlePinInteraction(pin.id); };
                 container.appendChild(node);
+
+                // Render challenge icons next to this station pin if any
+                let relatedChallenges = localState.activeChallenges.filter(c => c.stationPin && c.stationPin.id === pin.id);
+                relatedChallenges.forEach((challenge, idx) => {
+                    let challengeNode = document.createElement('div');
+                    challengeNode.className = 'challenge-icon';
+                    if (challenge.failedByPlayer1 || challenge.failedByPlayer2) {
+                        challengeNode.className += ' failed';
+                    }
+                    
+                    // Position challenge icon to the right of station pin
+                    challengeNode.style.left = `calc(${pin.x}% + ${20 + idx * 20}px)`;
+                    challengeNode.style.top = `${pin.y}%`;
+                    challengeNode.textContent = challenge.icon;
+                    challengeNode.title = `${challenge.name} (${challenge.baseReward}-${challenge.maxReward} chips)`;
+                    challengeNode.onclick = (e) => { e.stopPropagation(); handleChallengeInteraction(challenge.id); };
+                    container.appendChild(challengeNode);
+                });
             });
         }
 
@@ -640,6 +909,44 @@
                 });
             }
 
+            // Update challenges registry
+            const challengesList = document.getElementById('challenges-list');
+            document.getElementById('challenges-counter').textContent = `${localState.activeChallenges.length} Active`;
+            
+            if (localState.activeChallenges.length === 0) {
+                challengesList.innerHTML = `<div class="text-slate-500 italic col-span-full py-2">No active challenges. Click "Generate 4 Challenges" to begin.</div>`;
+            } else {
+                challengesList.innerHTML = '';
+                localState.activeChallenges.forEach(challenge => {
+                    let card = document.createElement('div');
+                    card.className = "p-2 rounded-lg border transition cursor-pointer ";
+                    
+                    let bgClass = "bg-yellow-950/40 border-yellow-800 text-yellow-200";
+                    if (challenge.type === 'steal45') bgClass = "bg-purple-950/40 border-purple-800 text-purple-200";
+                    else if (challenge.type === 'variable') bgClass = "bg-indigo-950/40 border-indigo-800 text-indigo-200";
+                    
+                    if (challenge.failedByPlayer1 || challenge.failedByPlayer2) {
+                        card.className += "opacity-60 " + bgClass;
+                    } else {
+                        card.className += bgClass;
+                    }
+
+                    let failStatus = '';
+                    if (challenge.failedByPlayer1) failStatus += ' P1✗';
+                    if (challenge.failedByPlayer2) failStatus += ' P2✗';
+
+                    card.innerHTML = `
+                        <div class="flex flex-col gap-1">
+                            <div class="font-bold">${challenge.icon} ${challenge.name}</div>
+                            <div class="text-[9px] opacity-80">${challenge.station}</div>
+                            <div class="text-[9px] font-mono">${challenge.baseReward}-${challenge.maxReward} chips${failStatus}</div>
+                        </div>
+                    `;
+                    card.onclick = () => { handleChallengeInteraction(challenge.id); };
+                    challengesList.appendChild(card);
+                });
+            }
+
             localState.players[1].stationsCount = p1Stations;
             localState.players[2].stationsCount = p2Stations;
 
@@ -667,7 +974,6 @@
             preview.textContent = jsonString;
             previewContainer.classList.remove('hidden');
             
-            // Copy to clipboard
             navigator.clipboard.writeText(jsonString).then(() => {
                 alert('✅ Map state copied to clipboard! Paste it into another device to import.');
             }).catch(() => {
@@ -702,10 +1008,11 @@
             if (confirm('⚠️ Clear all stations? This cannot be undone.')) {
                 if (confirm('⚠️ Are you absolutely sure?')) {
                     localState.boundPins = [];
+                    localState.activeChallenges = [];
                     localState.players = { 1: { chips: 20, stationsCount: 0 }, 2: { chips: 20, stationsCount: 0 } };
                     updateCalculationsAndRegistry();
                     pushStateToCloudRelay();
-                    alert('✅ All stations cleared.');
+                    alert('✅ All stations and challenges cleared.');
                 }
             }
         }
