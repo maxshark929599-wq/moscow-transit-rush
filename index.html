@@ -651,6 +651,7 @@
             if(inputVal) gameRoomId = inputVal;
             document.getElementById('sync-indicator').className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
             
+            // Immediately pull the initial state
             await pullStateFromCloudRelay();
         }
 
@@ -661,12 +662,19 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(localState)
                 });
-            } catch (err) { console.warn("Sync update drop:", err); }
+            } catch (err) { 
+                console.error("Cloud upload failed:", err); 
+            }
         }
 
         async function pullStateFromCloudRelay() {
             try {
-                const res = await fetch(`https://keyvalue.immanual.xyz/api/keyv/${gameRoomId}`);
+                // The '?_ts=' addition forces mobile browsers to bypass local caches
+                const res = await fetch(`https://keyvalue.immanual.xyz/api/keyv/${gameRoomId}?_ts=${Date.now()}`, {
+                    method: 'GET',
+                    headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+                });
+                
                 if (res.ok) {
                     const data = await res.json();
                     if (data && data.players && data.boundPins) {
@@ -674,10 +682,12 @@
                         updateCalculationsAndRegistry();
                     }
                 }
-            } catch (err) { console.warn("Listening context frame lag:", err); }
+            } catch (err) { 
+                console.error("Cloud download failed:", err); 
+            }
         }
 
-        // Set up infinite structural cloud network background updates
+        // Run the background listener loop globally every 2.5 seconds
         setInterval(pullStateFromCloudRelay, 2500);
     </script>
 </body>
