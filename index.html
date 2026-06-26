@@ -656,39 +656,50 @@
         }
 
         async function pushStateToCloudRelay() {
-            try {
-                await fetch(`https://keyvalue.immanual.xyz/api/keyv/${gameRoomId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(localState)
-                });
-            } catch (err) { 
-                console.warn("Database push failed:", err); 
+    try {
+        const token = prompt("Enter your GitHub Personal Access Token:"); // Store this securely instead
+        const response = await fetch(
+            `https://api.github.com/repos/maxshark929599-wq/moscow-transit-rush/contents/game-state.json`,
+            {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    message: 'Update game state',
+                    content: btoa(JSON.stringify(localState)), // Base64 encode
+                    sha: currentSha // You'll need to track this
+                })
             }
+        );
+        if (response.ok) {
+            const data = await response.json();
+            currentSha = data.commit.sha;
         }
+    } catch (err) {
+        console.warn("Push to GitHub failed:", err);
+    }
+}
 
-        async function pullStateFromCloudRelay() {
-            try {
-                // cache-busting timestamp combined with headers stops mobile caching entirely
-                const res = await fetch(`https://keyvalue.immanual.xyz/api/keyv/${gameRoomId}?_ts=${Date.now()}`, {
-                    method: 'GET',
-                    headers: {
-                        'Cache-Control': 'no-cache, no-store, must-revalidate',
-                        'Pragma': 'no-cache',
-                        'Expires': '0'
-                    }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && data.players && data.boundPins) {
-                        localState = data;
-                        updateCalculationsAndRegistry();
-                    }
-                }
-            } catch (err) { 
-                console.warn("Database sync fetch missed:", err); 
+async function pullStateFromCloudRelay() {
+    try {
+        const response = await fetch(
+            `https://api.github.com/repos/maxshark929599-wq/moscow-transit-rush/contents/game-state.json`
+        );
+        if (response.ok) {
+            const data = await response.json();
+            const decodedState = JSON.parse(atob(data.content));
+            if (decodedState && decodedState.players && decodedState.boundPins) {
+                localState = decodedState;
+                currentSha = data.sha;
+                updateCalculationsAndRegistry();
             }
         }
+    } catch (err) {
+        console.warn("Pull from GitHub failed:", err);
+    }
+}
     </script>
 </body>
 </html>
