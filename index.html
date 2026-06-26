@@ -655,50 +655,112 @@
             syncIntervalId = setInterval(pullStateFromCloudRelay, 2000);
         }
 
-        async function pushStateToCloudRelay() {
-    try {
-        const token = prompt("Enter your GitHub Personal Access Token:"); // Store this securely instead
-        const response = await fetch(
-            `https://api.github.com/repos/maxshark929599-wq/moscow-transit-rush/contents/game-state.json`,
-            {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    message: 'Update game state',
-                    content: btoa(JSON.stringify(localState)), // Base64 encode
-                    sha: currentSha // You'll need to track this
-                })
-            }
-        );
-        if (response.ok) {
-            const data = await response.json();
-            currentSha = data.commit.sha;
-        }
-    } catch (err) {
-        console.warn("Push to GitHub failed:", err);
+        // Minimal improved functions — paste into your script replacing the old push/pull functions.
+
+async function getGitHubTokenInteractive() {
+  let token = sessionStorage.getItem('gh_token');
+  if (!token) {
+    token = prompt('Enter a GitHub Personal Access Token (repo or public_repo scope):');
+    if (!token) return null;
+    sessionStorage.setItem('gh_token', token); // temporary, only sessionStorage
+  }
+  return token;
+}
+
+async function pushStateToCloudRelay() {
+  try {
+    const token = await getGitHubTokenInteractive();
+    if (!token) return;
+
+    const path = 'game-state.json';
+    const url = `https://api.github.com/repos/maxshark929599-wq/moscow-transit-rush/contents/${path}`;
+
+    const body = {
+      message: 'Update game state',
+      content: btoa(JSON.stringify(localState))
+    };
+    // Only include sha when we already know it (update case)
+    if (typeof currentSha === 'string' && currentSha.length) body.sha = currentSha;
+
+    let response = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `token ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+
+    // If file didn't exist before, GitHub returns 201 (created); update returns 200.
+    if (response.ok) {
+      const data = await response.json();
+      // store blob sha for next update — data.content.sha is the blob's sha
+      currentSha = data.content && data.content.sha ? data.content.sha : data.sha || currentSha;
+      console.log('Pushed state to GitHub, new sha:', currentSha);
+      return true;
     }
+
+    // 409 Conflict — need to fetch current sha and retry
+    if (response.status === 409) {
+      console.warn('Conflict writing file — fetching current sha and retrying');
+      const head = await fetch(url);
+      if (head.ok) {
+        const headData = await head.json();
+        currentSha = headData.sha;
+        body.sha = currentSha;
+        response = await fetch(url, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `token ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(body)
+        });
+        if (response.ok) {
+          const data = await response.json();
+          currentSha = data.content && data.content.sha ? data.content.sha : data.sha || currentSha;
+          return true;
+        }
+      }
+    }
+
+    // other errors: log details
+    const text = await response.text();
+    console.warn('Failed to push state to GitHub:', response.status, text);
+    return false;
+  } catch (err) {
+    console.warn('Push to GitHub failed:', err);
+    return false;
+  }
 }
 
 async function pullStateFromCloudRelay() {
-    try {
-        const response = await fetch(
-            `https://api.github.com/repos/maxshark929599-wq/moscow-transit-rush/contents/game-state.json`
-        );
-        if (response.ok) {
-            const data = await response.json();
-            const decodedState = JSON.parse(atob(data.content));
-            if (decodedState && decodedState.players && decodedState.boundPins) {
-                localState = decodedState;
-                currentSha = data.sha;
-                updateCalculationsAndRegistry();
-            }
-        }
-    } catch (err) {
-        console.warn("Pull from GitHub failed:", err);
+  try {
+    const path = 'game-state.json';
+    const url = `https://api.github.com/repos/maxshark929599-wq/moscow-transit-rush/contents/${path}`;
+
+    const response = await fetch(url);
+    if (response.status === 404) {
+      // File doesn't exist yet — nothing to pull. You may want to create it by pushing local state.
+      console.info('No game-state.json found in repo (first-run).');
+      return;
     }
+    if (!response.ok) {
+      console.warn('Failed to fetch game-state.json:', response.status);
+      return;
+    }
+
+    const data = await response.json();
+    const decoded = JSON.parse(atob(data.content.replace(/\n/g, '')));
+    if (decoded && decoded.players && Array.isArray(decoded.boundPins) !== undefined) {
+      localState = decoded;
+      // store the blob sha for later updates
+      currentSha = data.sha || (data.content && data.content.sha) || currentSha;
+      updateCalculationsAndRegistry();
+    }
+  } catch (err) {
+    console.warn('Pull from GitHub failed:', err);
+  }
 }
     </script>
 </body>
