@@ -6,7 +6,6 @@
     <title>Moscow Transit Rush: Live Engine</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
-        /* Responsive Viewport Frame */
         .viewport-map-frame {
             position: relative;
             overflow: auto;
@@ -17,26 +16,23 @@
         }
         .viewport-map-frame:active { cursor: grabbing; }
         
-        /* Map Canvas Outer Wrapper */
         .map-canvas-container {
             position: relative;
             transform-origin: top left;
             transition: transform 0.1s ease-out;
-            width: 2400px; /* Base structural anchoring size matching image asset scale */
+            width: 2400px;
         }
         
-        /* Fixed absolute layer for pin coordinates */
         #pins-interaction-layer {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none; /* Allows click events to pass down to map image */
+            pointer-events: none;
             z-index: 50;
         }
 
-        /* Pin styling overrides */
         .station-pin {
             position: absolute;
             transform: translate(-50%, -50%);
@@ -50,7 +46,7 @@
             font-weight: 900;
             cursor: pointer;
             box-shadow: 0 4px 10px rgba(0,0,0,0.6);
-            pointer-events: auto; /* Re-enables clicking explicitly on the pins */
+            pointer-events: auto;
             transition: transform 0.15s;
         }
         .station-pin:hover { transform: translate(-50%, -50%) scale(1.25); }
@@ -70,11 +66,11 @@
                 <option value="admin">Admin (Map Creator)</option>
             </select>
 
-            <button onclick="initializeLiveSync()" class="bg-teal-600 hover:bg-teal-500 px-3 py-1 rounded font-bold text-white transition">Force Reconnect</button>
+            <button onclick="initializeLiveSync()" class="bg-teal-600 hover:bg-teal-500 px-3 py-1 rounded font-bold text-white transition">Reconnect Database</button>
         </div>
         <div class="flex items-center gap-2">
-            <span class="text-slate-400 font-medium">Engine State:</span>
-            <span id="mode-status-badge" class="bg-emerald-600 px-3 py-1 rounded font-bold text-white">GAME ACTIVE</span>
+            <span class="text-slate-400 font-medium">Database Connection:</span>
+            <span id="sync-status-text" class="text-amber-400 font-mono">Connecting...</span>
         </div>
     </div>
 
@@ -115,7 +111,6 @@
     </header>
 
     <main class="max-w-7xl mx-auto p-2 space-y-4">
-        
         <div class="bg-slate-800 p-2 rounded-xl border border-slate-700 flex flex-wrap justify-between items-center px-4 shadow-sm gap-2">
             <span class="text-xs text-slate-400 font-medium" id="status-hint">Loading layout configuration context...</span>
             <div class="flex items-center gap-3">
@@ -144,7 +139,6 @@
     </main>
 
     <script>
-        // Master Dataset Source Array Checklist
         const MASTER_STATIONS_REGISTRY = [
             { name: "Бульвар Рокоссовского", lines: ["1", "14"] },
             { name: "Черкизовская-Локомотив", lines: ["1", "14"] },
@@ -410,19 +404,21 @@
             { name: "Кусково", lines: ["D4"] }
         ];
 
-        let currentRole = "player1"; // Default role initialization
+        let currentRole = "player1"; 
         let gameRoomId = "moscow-clash-1";
+        
         let localState = {
             players: { 1: { chips: 20, stationsCount: 0 }, 2: { chips: 20, stationsCount: 0 } },
             boundPins: []
         };
 
+        let syncIntervalId = null;
+
         document.addEventListener("DOMContentLoaded", () => {
             applyZoomFactor();
             handleRoleChange();
-            initializeLiveSync(); // Auto-start listening on initialization
+            initializeLiveSync(); 
             
-            // Drag and scroll map canvas interaction logic 
             const slider = document.getElementById('mapFrame');
             let isDown = false; let startX, startY, scrollLeft, scrollTop;
             slider.addEventListener('mousedown', (e) => {
@@ -451,19 +447,15 @@
             const hint = document.getElementById('status-hint');
 
             if (currentRole === 'admin') {
-                badge.textContent = "SETUP MODE (ADMIN)";
-                badge.className = "bg-amber-600 px-3 py-1 rounded font-bold text-white";
                 hint.textContent = "Admin Control: Click on map canvas locations to drop predefined stations.";
             } else {
-                badge.textContent = "GAME ACTIVE";
-                badge.className = "bg-emerald-600 px-3 py-1 rounded font-bold text-white animate-pulse";
                 hint.textContent = `Active Role: ${currentRole === 'player1' ? 'Player 1' : 'Player 2'}. Click existing station markers to claim, flip, or track rent.`;
             }
             renderActiveOverlayPins();
         }
 
         function handleCanvasInteraction(event) {
-            if (currentRole !== 'admin') return; // Enforce layout mapping exclusively to admin role
+            if (currentRole !== 'admin') return; 
             
             const rect = document.getElementById('baseMapImg').getBoundingClientRect();
             const x = ((event.clientX - rect.left) / rect.width) * 100;
@@ -512,7 +504,6 @@
                 return;
             }
 
-            // Game Action Routing based on player actions
             const actingPlayerNum = currentRole === 'player1' ? 1 : 2;
             const opposingPlayerNum = actingPlayerNum === 1 ? 2 : 1;
 
@@ -526,7 +517,6 @@
 
             if (gameSelection === "1") {
                 if (pin.owner === null) {
-                    // Claiming open neutral station
                     let stake = parseInt(prompt("Enter initial chips to stake on this open station (Allowed bounds: 1 to 5 chips):", "1")) || 1;
                     if (stake < 1 || stake > 5) { alert("Error: Initial neutral claims must be balanced between 1 and 5 chips!"); return; }
                     
@@ -534,14 +524,12 @@
                     pin.owner = actingPlayerNum;
                     pin.chips = stake;
                 } else if (pin.owner === actingPlayerNum) {
-                    // Adding defense to own asset
                     let addChips = parseInt(prompt("Enter additional chips to add to your fortification (Max 5):", "1")) || 1;
                     if (addChips < 1 || addChips > 5) { alert("Must be between 1 and 5 chips."); return; }
                     
                     localState.players[actingPlayerNum].chips -= addChips;
                     pin.chips += addChips;
                 } else {
-                    // Flipping opponent's territory rules validation logic
                     let requiredMinFlip = pin.chips + 1;
                     let allowedMaxFlip = pin.chips + 5;
                     
@@ -557,7 +545,6 @@
                     pin.chips = flipStakeInput;
                 }
             } else if (gameSelection === "2") {
-                // Rulebook compliance: forced pass-through rent handles going negative cleanly
                 if (pin.owner === null || pin.owner === actingPlayerNum) {
                     alert("Rent can only be executed if landing on an opponent's station!");
                     return;
@@ -646,13 +633,26 @@
             renderActiveOverlayPins();
         }
 
+        // --- DATABASE SYNC ENGINE CONTROLS ---
+
         async function initializeLiveSync() {
             const inputVal = document.getElementById('room-id-input').value.trim();
             if(inputVal) gameRoomId = inputVal;
-            document.getElementById('sync-indicator').className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
             
-            // Immediately pull the initial state
+            document.getElementById('sync-indicator').className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+            document.getElementById('sync-status-text').textContent = "Sync active";
+            document.getElementById('sync-status-text').className = "text-emerald-400 font-mono";
+
+            // Clear any old engines running in the background to prevent data pile-ups
+            if (syncIntervalId) {
+                clearInterval(syncIntervalId);
+            }
+            
+            // 1. Immediately request current data from the central database
             await pullStateFromCloudRelay();
+
+            // 2. Set up an infinite background look loop that checks every 2 seconds
+            syncIntervalId = setInterval(pullStateFromCloudRelay, 2000);
         }
 
         async function pushStateToCloudRelay() {
@@ -663,18 +663,21 @@
                     body: JSON.stringify(localState)
                 });
             } catch (err) { 
-                console.error("Cloud upload failed:", err); 
+                console.warn("Database push failed:", err); 
             }
         }
 
         async function pullStateFromCloudRelay() {
             try {
-                // The '?_ts=' addition forces mobile browsers to bypass local caches
+                // cache-busting timestamp combined with headers stops mobile caching entirely
                 const res = await fetch(`https://keyvalue.immanual.xyz/api/keyv/${gameRoomId}?_ts=${Date.now()}`, {
                     method: 'GET',
-                    headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
                 });
-                
                 if (res.ok) {
                     const data = await res.json();
                     if (data && data.players && data.boundPins) {
@@ -683,12 +686,9 @@
                     }
                 }
             } catch (err) { 
-                console.error("Cloud download failed:", err); 
+                console.warn("Database sync fetch missed:", err); 
             }
         }
-
-        // Run the background listener loop globally every 2.5 seconds
-        setInterval(pullStateFromCloudRelay, 2500);
     </script>
 </body>
 </html>
