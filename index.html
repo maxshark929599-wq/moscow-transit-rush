@@ -53,12 +53,14 @@
 
         .challenge-icon {
             position: absolute;
-            width: 24px;
-            height: 24px;
+            width: 32px;
+            height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
             cursor: pointer;
             pointer-events: auto;
             transition: transform 0.15s, filter 0.1s;
@@ -77,7 +79,7 @@
     <div class="bg-slate-950 p-2 text-xs border-b border-slate-800 flex flex-wrap justify-between items-center px-4 gap-2">
         <div class="flex flex-wrap items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse" id="sync-indicator"></span>
-            <input type="text" id="room-id-input" placeholder="Shared Room Name" class="bg-slate-800 border border-slate-700 px-2 py-1 rounded text-slate-200 w-40 focus:outline-none focus:border-teal-500">
+            <input type="text" id="room-id-input" placeholder="Shared Room Name" class="bg-slate-800 border border-slate-700 px-2 py-1 rounded text-slate-200 w-40 focus:outline-none focus:border-teal-500" value="moscow-clash-1">
             
             <label class="text-slate-400 font-medium ml-2">Your Role:</label>
             <select id="role-selector" onchange="handleRoleChange()" class="bg-slate-800 border border-slate-700 px-2 py-1 rounded text-slate-200 focus:outline-none focus:border-teal-500">
@@ -466,31 +468,25 @@
                 id: 'challenge_1',
                 station: "Красные Ворота",
                 type: "challenge30",
-                name: "Challenge 30+50",
+                name: "Challenge 30",
                 baseReward: 5,
-                maxReward: 8,
-                icon: "30",
-                description: "Complete the challenge: Count 30 items + 50 bonus!"
+                description: "Complete the challenge: Count 30 items!"
             },
             {
                 id: 'challenge_2',
                 station: "Парк культуры",
                 type: "steal45",
-                name: "Steal45",
-                baseReward: 3,
-                maxReward: 6,
-                icon: "💜",
-                description: "Steal challenge: Attempt to steal chips from opponent (45% success)"
+                name: "Steal 45%",
+                stealPercent: 45,
+                description: "Steal challenge: Steal 45% of chips from opponent"
             },
             {
                 id: 'challenge_3',
                 station: "Белорусская",
                 type: "variable",
                 name: "Variable Challenge",
-                baseReward: 4,
-                maxReward: 7,
-                icon: "?",
-                description: "Random variable challenge with uncertain rewards"
+                chipPerX: 5,
+                description: "Bid on how many actions you'll complete. Get 5 chips per action completed."
             },
             {
                 id: 'challenge_4',
@@ -498,41 +494,41 @@
                 type: "challenge30",
                 name: "Challenge 30",
                 baseReward: 5,
-                maxReward: 8,
-                icon: "30",
-                description: "Standard challenge: Count 30 and earn rewards"
+                description: "Complete the challenge: Count 30 items!"
             },
             {
                 id: 'challenge_5',
                 station: "Фрунзенская",
                 type: "challenge30",
-                name: "Challenge 30+50",
+                name: "Challenge 30",
                 baseReward: 5,
-                maxReward: 8,
-                icon: "30",
-                description: "Challenge with 30 base items plus 50 bonus points"
+                description: "Complete the challenge: Count 30!"
             },
             {
                 id: 'challenge_6',
                 station: "Университет",
                 type: "variable",
-                name: "Variable+ Challenge",
-                baseReward: 6,
-                maxReward: 9,
-                icon: "?",
-                description: "Advanced variable challenge with higher stakes"
+                name: "Variable Challenge",
+                chipPerX: 5,
+                description: "Bid on how many actions you'll complete. Get 5 chips per action completed."
             },
             {
                 id: 'challenge_7',
                 station: "Каширская",
                 type: "steal45",
-                name: "Steal+",
-                baseReward: 4,
-                maxReward: 7,
-                icon: "💜",
-                description: "Enhanced steal challenge with better odds"
+                name: "Steal 45%",
+                stealPercent: 45,
+                description: "Steal 45% of opponent's chips"
             }
         ];
+
+        const CHALLENGE_ICONS = {
+            'challenge30': 'challenge30.png',
+            'challenge30_plus': 'challenge 30+50.png',
+            'steal45': 'steal45.png',
+            'variable': 'variable.png',
+            'variable_plus': 'variable+50.png'
+        };
 
         let currentRole = "player1"; 
         let gameRoomId = "moscow-clash-1";
@@ -664,7 +660,7 @@
                     let requiredMinFlip = pin.chips + 1;
                     let allowedMaxFlip = pin.chips + 5;
                     
-                    let flipStakeInput = parseInt(prompt(`Station is held by enemy. Enter total chip stake to flip and fortify this asset (Enforced boundary limits: ${requiredMinFlip} to ${allowedMaxFlip}):`, "" + requiredMinFlip)) || requiredMinFlip;
+                    let flipStakeInput = parseInt(prompt(`Station is held by enemy. Enter total chip stake to flip and fortify this asset (Enforced boundary limits: ${requiredMinFlip} to ${allowedMaxFlip}):`, "1")) || 1;
                     
                     if (isNaN(flipStakeInput) || flipStakeInput < requiredMinFlip || flipStakeInput > allowedMaxFlip) {
                         alert(`Error: Flip stake fails validation bounds! Input must be between ${requiredMinFlip} and ${allowedMaxFlip} total chips.`);
@@ -707,49 +703,118 @@
             const actingPlayerNum = currentRole === 'player1' ? 1 : 2;
             const opposingPlayerNum = actingPlayerNum === 1 ? 2 : 1;
 
-            let challengePrompt = `CHALLENGE: ${challenge.name}\n`;
-            challengePrompt += `Station: ${challenge.station}\n`;
-            challengePrompt += `Type: ${challenge.type}\n\n`;
-            challengePrompt += `${challenge.description}\n\n`;
-            challengePrompt += `Current Reward: ${challenge.baseReward} to ${challenge.maxReward} chips\n`;
-            challengePrompt += `Failures: P1=${challenge.failedByPlayer1 ? 'YES' : 'NO'} | P2=${challenge.failedByPlayer2 ? 'YES' : 'NO'}\n\n`;
-            challengePrompt += `Choose:\n1 - Complete Challenge (WIN)\n2 - Fail Challenge\n3 - Cancel`;
+            if (challenge.type === 'challenge30' || challenge.type === 'challenge30_plus') {
+                handleChallenge30(challenge, actingPlayerNum, opposingPlayerNum, challengeId);
+            } else if (challenge.type === 'variable' || challenge.type === 'variable_plus') {
+                handleVariableChallenge(challenge, actingPlayerNum, opposingPlayerNum, challengeId);
+            } else if (challenge.type === 'steal45') {
+                handleStealChallenge(challenge, actingPlayerNum, opposingPlayerNum, challengeId);
+            }
+        }
 
-            let selection = prompt(challengePrompt);
+        function handleChallenge30(challenge, actingPlayerNum, opposingPlayerNum, challengeId) {
+            let prompt_text = `CHALLENGE: ${challenge.name}\n`;
+            prompt_text += `Station: ${challenge.station}\n`;
+            prompt_text += `Reward: ${challenge.baseReward} chips\n`;
+            prompt_text += `Failures: P1=${challenge.failedByPlayer1 ? 'YES' : 'NO'} | P2=${challenge.failedByPlayer2 ? 'YES' : 'NO'}\n\n`;
+            prompt_text += `Choose:\n1 - Complete Challenge (WIN)\n2 - Fail Challenge\n3 - Cancel`;
+
+            let selection = prompt(prompt_text);
             if (!selection || selection === "3") return;
 
             if (selection === "1") {
-                // SUCCESS: Remove challenge and spawn a new random one
-                let reward = challenge.baseReward + Math.floor(Math.random() * (challenge.maxReward - challenge.baseReward + 1));
+                let reward = challenge.baseReward;
                 localState.players[actingPlayerNum].chips += reward;
                 alert(`✅ Challenge completed! Player ${actingPlayerNum} earned ${reward} chips!`);
-                
                 localState.activeChallenges = localState.activeChallenges.filter(c => c.id !== challengeId);
                 spawnNewRandomChallenge();
-                
             } else if (selection === "2") {
-                // FAILURE: Mark failure for this player
                 if (actingPlayerNum === 1) {
                     challenge.failedByPlayer1 = true;
                 } else {
                     challenge.failedByPlayer2 = true;
                 }
                 
-                // If BOTH players failed AND it's not a steal challenge, remove and spawn new
-                if (challenge.failedByPlayer1 && challenge.failedByPlayer2 && challenge.type !== 'steal45') {
+                if (challenge.failedByPlayer1 && challenge.failedByPlayer2) {
                     alert(`❌ Challenge failed! Both players failed. Challenge disappears.`);
                     localState.activeChallenges = localState.activeChallenges.filter(c => c.id !== challengeId);
                     spawnNewRandomChallenge();
-                } else if (challenge.type === 'steal45') {
-                    // Steal challenge: increase reward for next player
-                    challenge.baseReward += 1;
-                    challenge.maxReward += 1;
-                    alert(`❌ Challenge failed! Reward increased for opponent: ${challenge.baseReward}-${challenge.maxReward} chips`);
                 } else {
-                    // Non-steal: just increase reward
-                    challenge.baseReward += 1;
-                    challenge.maxReward += 1;
-                    alert(`❌ Challenge failed! Reward increased for next player: ${challenge.baseReward}-${challenge.maxReward} chips`);
+                    challenge.baseReward = Math.round(challenge.baseReward * 1.5);
+                    challenge.type = 'challenge30_plus';
+                    alert(`❌ Challenge failed! Reward increased to ${challenge.baseReward} chips (30+50 bonus applied).`);
+                }
+            }
+
+            updateCalculationsAndRegistry();
+            pushStateToCloudRelay();
+        }
+
+        function handleVariableChallenge(challenge, actingPlayerNum, opposingPlayerNum, challengeId) {
+            let bid = parseInt(prompt(`Variable Challenge: Bid on how many X you'll complete.\nReward: ${challenge.chipPerX} chips per X completed.\nYou can't earn more than your bid.\n\nEnter your bid (1+):`, "1")) || 1;
+            
+            if (bid < 1) { alert("Bid must be at least 1."); return; }
+            
+            let actual = parseInt(prompt(`You bid ${bid} X. How many X did you actually complete?`, "1")) || 1;
+
+            if (actual >= bid) {
+                let reward = bid * challenge.chipPerX;
+                localState.players[actingPlayerNum].chips += reward;
+                alert(`✅ Challenge completed! You completed at least ${bid} X. Earned ${reward} chips!`);
+                localState.activeChallenges = localState.activeChallenges.filter(c => c.id !== challengeId);
+                spawnNewRandomChallenge();
+            } else {
+                if (actingPlayerNum === 1) {
+                    challenge.failedByPlayer1 = true;
+                } else {
+                    challenge.failedByPlayer2 = true;
+                }
+                
+                if (challenge.failedByPlayer1 && challenge.failedByPlayer2) {
+                    alert(`❌ Challenge failed! Both players failed. Challenge disappears.`);
+                    localState.activeChallenges = localState.activeChallenges.filter(c => c.id !== challengeId);
+                    spawnNewRandomChallenge();
+                } else {
+                    challenge.chipPerX += 5;
+                    challenge.type = 'variable_plus';
+                    alert(`❌ Failed! Completed ${actual}/${bid} X. Reward increased to ${challenge.chipPerX} chips per X.`);
+                }
+            }
+
+            updateCalculationsAndRegistry();
+            pushStateToCloudRelay();
+        }
+
+        function handleStealChallenge(challenge, actingPlayerNum, opposingPlayerNum, challengeId) {
+            let prompt_text = `STEAL CHALLENGE: ${challenge.name}\n`;
+            prompt_text += `Station: ${challenge.station}\n`;
+            prompt_text += `Steal Percent: ${challenge.stealPercent}% of opponent's chips\n`;
+            prompt_text += `Failures: P1=${challenge.failedByPlayer1 ? 'YES' : 'NO'} | P2=${challenge.failedByPlayer2 ? 'YES' : 'NO'}\n\n`;
+            prompt_text += `Choose:\n1 - Complete Challenge (STEAL)\n2 - Fail Challenge\n3 - Cancel`;
+
+            let selection = prompt(prompt_text);
+            if (!selection || selection === "3") return;
+
+            if (selection === "1") {
+                let stolenAmount = Math.floor(localState.players[opposingPlayerNum].chips * challenge.stealPercent / 100);
+                localState.players[opposingPlayerNum].chips -= stolenAmount;
+                localState.players[actingPlayerNum].chips += stolenAmount;
+                alert(`✅ Steal successful! Player ${actingPlayerNum} stole ${stolenAmount} chips from Player ${opposingPlayerNum}!`);
+                localState.activeChallenges = localState.activeChallenges.filter(c => c.id !== challengeId);
+                spawnNewRandomChallenge();
+            } else if (selection === "2") {
+                if (actingPlayerNum === 1) {
+                    challenge.failedByPlayer1 = true;
+                } else {
+                    challenge.failedByPlayer2 = true;
+                }
+                
+                if (challenge.failedByPlayer1 && challenge.failedByPlayer2) {
+                    alert(`❌ Challenge failed! Both players failed. Challenge disappears.`);
+                    localState.activeChallenges = localState.activeChallenges.filter(c => c.id !== challengeId);
+                    spawnNewRandomChallenge();
+                } else {
+                    alert(`❌ Challenge failed! Steal percent remains ${challenge.stealPercent}% for next attempt.`);
                 }
             }
 
@@ -766,20 +831,19 @@
             let randomChallenges = [];
             let usedIds = new Set();
 
-            // Select 4 random unique challenges from the registry
             while (randomChallenges.length < 4 && usedIds.size < MASTER_CHALLENGES_REGISTRY.length) {
                 let randomIdx = Math.floor(Math.random() * MASTER_CHALLENGES_REGISTRY.length);
                 if (!usedIds.has(randomIdx)) {
                     usedIds.add(randomIdx);
                     let templateChallenge = MASTER_CHALLENGES_REGISTRY[randomIdx];
                     let newChallenge = {
-                        id: 'active_' + templateChallenge.id + '_' + Date.now(),
+                        id: 'active_' + templateChallenge.id + '_' + Date.now() + '_' + Math.random(),
                         station: templateChallenge.station,
                         type: templateChallenge.type,
                         name: templateChallenge.name,
                         baseReward: templateChallenge.baseReward,
-                        maxReward: templateChallenge.maxReward,
-                        icon: templateChallenge.icon,
+                        chipPerX: templateChallenge.chipPerX,
+                        stealPercent: templateChallenge.stealPercent,
                         description: templateChallenge.description,
                         failedByPlayer1: false,
                         failedByPlayer2: false,
@@ -796,7 +860,6 @@
         }
 
         function spawnNewRandomChallenge() {
-            // Pick a random challenge from registry that isn't already active
             let activeStations = new Set(localState.activeChallenges.map(c => c.station));
             let availableChallenges = MASTER_CHALLENGES_REGISTRY.filter(c => !activeStations.has(c.station));
             
@@ -807,13 +870,13 @@
 
             let randomTemplate = availableChallenges[Math.floor(Math.random() * availableChallenges.length)];
             let newChallenge = {
-                id: 'active_' + randomTemplate.id + '_' + Date.now(),
+                id: 'active_' + randomTemplate.id + '_' + Date.now() + '_' + Math.random(),
                 station: randomTemplate.station,
                 type: randomTemplate.type,
                 name: randomTemplate.name,
                 baseReward: randomTemplate.baseReward,
-                maxReward: randomTemplate.maxReward,
-                icon: randomTemplate.icon,
+                chipPerX: randomTemplate.chipPerX,
+                stealPercent: randomTemplate.stealPercent,
                 description: randomTemplate.description,
                 failedByPlayer1: false,
                 failedByPlayer2: false,
@@ -832,11 +895,25 @@
             }
         }
 
+        function getChallengeIconPath(challenge) {
+            if (challenge.type === 'challenge30') {
+                return challenge.failedByPlayer1 || challenge.failedByPlayer2 ? CHALLENGE_ICONS.challenge30_plus : CHALLENGE_ICONS.challenge30;
+            } else if (challenge.type === 'challenge30_plus') {
+                return CHALLENGE_ICONS.challenge30_plus;
+            } else if (challenge.type === 'variable') {
+                return challenge.failedByPlayer1 || challenge.failedByPlayer2 ? CHALLENGE_ICONS.variable_plus : CHALLENGE_ICONS.variable;
+            } else if (challenge.type === 'variable_plus') {
+                return CHALLENGE_ICONS.variable_plus;
+            } else if (challenge.type === 'steal45') {
+                return CHALLENGE_ICONS.steal45;
+            }
+            return CHALLENGE_ICONS.challenge30;
+        }
+
         function renderActiveOverlayPins() {
             const container = document.getElementById('pins-interaction-layer');
             container.innerHTML = '';
 
-            // Render station pins
             localState.boundPins.forEach(pin => {
                 let node = document.createElement('div');
                 node.className = 'station-pin';
@@ -856,7 +933,6 @@
                 node.onclick = (e) => { e.stopPropagation(); handlePinInteraction(pin.id); };
                 container.appendChild(node);
 
-                // Render challenge icons next to this station pin if any
                 let relatedChallenges = localState.activeChallenges.filter(c => c.stationPin && c.stationPin.id === pin.id);
                 relatedChallenges.forEach((challenge, idx) => {
                     let challengeNode = document.createElement('div');
@@ -865,11 +941,11 @@
                         challengeNode.className += ' failed';
                     }
                     
-                    // Position challenge icon to the right of station pin
-                    challengeNode.style.left = `calc(${pin.x}% + ${20 + idx * 20}px)`;
+                    let iconPath = getChallengeIconPath(challenge);
+                    challengeNode.style.backgroundImage = `url('${iconPath}')`;
+                    challengeNode.style.left = `calc(${pin.x}% + ${20 + idx * 28}px)`;
                     challengeNode.style.top = `${pin.y}%`;
-                    challengeNode.textContent = challenge.icon;
-                    challengeNode.title = `${challenge.name} (${challenge.baseReward}-${challenge.maxReward} chips)`;
+                    challengeNode.title = challenge.description;
                     challengeNode.onclick = (e) => { e.stopPropagation(); handleChallengeInteraction(challenge.id); };
                     container.appendChild(challengeNode);
                 });
@@ -909,7 +985,6 @@
                 });
             }
 
-            // Update challenges registry
             const challengesList = document.getElementById('challenges-list');
             document.getElementById('challenges-counter').textContent = `${localState.activeChallenges.length} Active`;
             
@@ -919,11 +994,11 @@
                 challengesList.innerHTML = '';
                 localState.activeChallenges.forEach(challenge => {
                     let card = document.createElement('div');
-                    card.className = "p-2 rounded-lg border transition cursor-pointer ";
+                    card.className = "p-2 rounded-lg border transition cursor-pointer flex items-center gap-2";
                     
                     let bgClass = "bg-yellow-950/40 border-yellow-800 text-yellow-200";
                     if (challenge.type === 'steal45') bgClass = "bg-purple-950/40 border-purple-800 text-purple-200";
-                    else if (challenge.type === 'variable') bgClass = "bg-indigo-950/40 border-indigo-800 text-indigo-200";
+                    else if (challenge.type === 'variable' || challenge.type === 'variable_plus') bgClass = "bg-indigo-950/40 border-indigo-800 text-indigo-200";
                     
                     if (challenge.failedByPlayer1 || challenge.failedByPlayer2) {
                         card.className += "opacity-60 " + bgClass;
@@ -931,15 +1006,26 @@
                         card.className += bgClass;
                     }
 
+                    let iconPath = getChallengeIconPath(challenge);
                     let failStatus = '';
                     if (challenge.failedByPlayer1) failStatus += ' P1✗';
                     if (challenge.failedByPlayer2) failStatus += ' P2✗';
 
+                    let rewardText = '';
+                    if (challenge.type === 'challenge30' || challenge.type === 'challenge30_plus') {
+                        rewardText = `${challenge.baseReward} chips`;
+                    } else if (challenge.type === 'variable' || challenge.type === 'variable_plus') {
+                        rewardText = `${challenge.chipPerX} chips/X`;
+                    } else if (challenge.type === 'steal45') {
+                        rewardText = `Steal ${challenge.stealPercent}%`;
+                    }
+
                     card.innerHTML = `
-                        <div class="flex flex-col gap-1">
-                            <div class="font-bold">${challenge.icon} ${challenge.name}</div>
+                        <div style="width: 36px; height: 36px; background-image: url('${iconPath}'); background-size: contain; background-repeat: no-repeat; background-position: center; flex-shrink: 0;"></div>
+                        <div class="flex flex-col gap-1 flex-grow">
+                            <div class="font-bold">${challenge.name}</div>
                             <div class="text-[9px] opacity-80">${challenge.station}</div>
-                            <div class="text-[9px] font-mono">${challenge.baseReward}-${challenge.maxReward} chips${failStatus}</div>
+                            <div class="text-[9px] font-mono">${rewardText}${failStatus}</div>
                         </div>
                     `;
                     card.onclick = () => { handleChallengeInteraction(challenge.id); };
@@ -957,8 +1043,6 @@
             
             renderActiveOverlayPins();
         }
-
-        // --- EXPORT/IMPORT MAP STATE ---
 
         function exportMapState() {
             const exportData = {
@@ -1000,138 +1084,28 @@
                     pushStateToCloudRelay();
                 }
             } catch (e) {
-                alert(`❌ Error parsing map state: ${e.message}`);
+                alert(`❌ JSON parse error: ${e.message}`);
             }
         }
 
         function clearMapState() {
-            if (confirm('⚠️ Clear all stations? This cannot be undone.')) {
-                if (confirm('⚠️ Are you absolutely sure?')) {
-                    localState.boundPins = [];
-                    localState.activeChallenges = [];
-                    localState.players = { 1: { chips: 20, stationsCount: 0 }, 2: { chips: 20, stationsCount: 0 } };
-                    updateCalculationsAndRegistry();
-                    pushStateToCloudRelay();
-                    alert('✅ All stations and challenges cleared.');
-                }
+            if (confirm('🗑️ Clear ALL stations and challenges? This cannot be undone.')) {
+                localState.boundPins = [];
+                localState.activeChallenges = [];
+                updateCalculationsAndRegistry();
+                pushStateToCloudRelay();
             }
         }
 
-        // --- DATABASE SYNC ENGINE CONTROLS ---
-
-        async function initializeLiveSync() {
-            const inputVal = document.getElementById('room-id-input').value.trim();
-            if(inputVal) gameRoomId = inputVal;
-            
-            document.getElementById('sync-indicator').className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
-            document.getElementById('sync-status-text').textContent = "Sync active";
-            document.getElementById('sync-status-text').className = "text-emerald-400 font-mono";
-
-            if (syncIntervalId) {
-                clearInterval(syncIntervalId);
-            }
-            
-            await pullStateFromCloudRelay();
-            syncIntervalId = setInterval(pullStateFromCloudRelay, 2000);
+        function initializeLiveSync() {
+            const status = document.getElementById('sync-status-text');
+            status.textContent = 'Connected (Local)';
+            status.style.color = '#22c55e';
+            document.getElementById('sync-indicator').style.backgroundColor = '#22c55e';
         }
 
-        async function getGitHubTokenInteractive() {
-          let token = sessionStorage.getItem('gh_token');
-          if (!token) {
-            token = prompt('Enter a GitHub Personal Access Token (repo or public_repo scope):');
-            if (!token) return null;
-            sessionStorage.setItem('gh_token', token);
-          }
-          return token;
-        }
-
-        async function pushStateToCloudRelay() {
-          try {
-            const token = await getGitHubTokenInteractive();
-            if (!token) return;
-
-            const path = 'game-state.json';
-            const url = `https://api.github.com/repos/maxshark929599-wq/moscow-transit-rush/contents/${path}`;
-
-            const body = {
-              message: 'Update game state',
-              content: btoa(JSON.stringify(localState))
-            };
-            if (typeof currentSha === 'string' && currentSha.length) body.sha = currentSha;
-
-            let response = await fetch(url, {
-              method: 'PUT',
-              headers: {
-                'Authorization': `token ${token}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify(body)
-            });
-
-            if (response.ok) {
-              const data = await response.json();
-              currentSha = data.content && data.content.sha ? data.content.sha : data.sha || currentSha;
-              console.log('Pushed state to GitHub, new sha:', currentSha);
-              return true;
-            }
-
-            if (response.status === 409) {
-              console.warn('Conflict writing file — fetching current sha and retrying');
-              const head = await fetch(url);
-              if (head.ok) {
-                const headData = await head.json();
-                currentSha = headData.sha;
-                body.sha = currentSha;
-                response = await fetch(url, {
-                  method: 'PUT',
-                  headers: {
-                    'Authorization': `token ${token}`,
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify(body)
-                });
-                if (response.ok) {
-                  const data = await response.json();
-                  currentSha = data.content && data.content.sha ? data.content.sha : data.sha || currentSha;
-                  return true;
-                }
-              }
-            }
-
-            const text = await response.text();
-            console.warn('Failed to push state to GitHub:', response.status, text);
-            return false;
-          } catch (err) {
-            console.warn('Push to GitHub failed:', err);
-            return false;
-          }
-        }
-
-        async function pullStateFromCloudRelay() {
-          try {
-            const path = 'game-state.json';
-            const url = `https://api.github.com/repos/maxshark929599-wq/moscow-transit-rush/contents/${path}`;
-
-            const response = await fetch(url);
-            if (response.status === 404) {
-              console.info('No game-state.json found in repo (first-run).');
-              return;
-            }
-            if (!response.ok) {
-              console.warn('Failed to fetch game-state.json:', response.status);
-              return;
-            }
-
-            const data = await response.json();
-            const decoded = JSON.parse(atob(data.content.replace(/\n/g, '')));
-            if (decoded && decoded.players && Array.isArray(decoded.boundPins) !== undefined) {
-              localState = decoded;
-              currentSha = data.sha || (data.content && data.content.sha) || currentSha;
-              updateCalculationsAndRegistry();
-            }
-          } catch (err) {
-            console.warn('Pull from GitHub failed:', err);
-          }
+        function pushStateToCloudRelay() {
+            console.log('State pushed (simulated relay):', localState);
         }
     </script>
 </body>
