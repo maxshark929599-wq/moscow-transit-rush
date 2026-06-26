@@ -22,7 +22,7 @@
             position: relative;
             transform-origin: top left;
             transition: transform 0.1s ease-out;
-            width: 2400px; /* Base structural anchoring size matching your image asset scale */
+            width: 2400px; /* Base structural anchoring size matching image asset scale */
         }
         
         /* Fixed absolute layer for pin coordinates */
@@ -36,7 +36,7 @@
             z-index: 50;
         }
 
-        /* 1) Dynamic Fix: Pin styling overrides */
+        /* Pin styling overrides */
         .station-pin {
             position: absolute;
             transform: translate(-50%, -50%);
@@ -46,7 +46,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 900;
             cursor: pointer;
             box-shadow: 0 4px 10px rgba(0,0,0,0.6);
@@ -58,15 +58,23 @@
 </head>
 <body class="bg-slate-900 text-slate-100 font-sans antialiased select-none">
 
-    <div class="bg-slate-950 p-2 text-xs border-b border-slate-800 flex justify-between items-center px-4">
-        <div class="flex items-center gap-2">
+    <div class="bg-slate-950 p-2 text-xs border-b border-slate-800 flex flex-wrap justify-between items-center px-4 gap-2">
+        <div class="flex flex-wrap items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse" id="sync-indicator"></span>
             <input type="text" id="room-id-input" placeholder="Shared Room Name" class="bg-slate-800 border border-slate-700 px-2 py-1 rounded text-slate-200 w-40 focus:outline-none focus:border-teal-500" value="moscow-clash-1">
-            <button onclick="initializeLiveSync()" class="bg-teal-600 hover:bg-teal-500 px-3 py-1 rounded font-bold text-white transition">Connect Live</button>
+            
+            <label class="text-slate-400 font-medium ml-2">Your Role:</label>
+            <select id="role-selector" onchange="handleRoleChange()" class="bg-slate-800 border border-slate-700 px-2 py-1 rounded text-slate-200 focus:outline-none focus:border-teal-500">
+                <option value="player1">Player 1</option>
+                <option value="player2">Player 2</option>
+                <option value="admin">Admin (Map Creator)</option>
+            </select>
+
+            <button onclick="initializeLiveSync()" class="bg-teal-600 hover:bg-teal-500 px-3 py-1 rounded font-bold text-white transition">Force Reconnect</button>
         </div>
         <div class="flex items-center gap-2">
-            <span class="text-slate-400 font-medium">Mode:</span>
-            <button id="mode-toggle-btn" onclick="toggleMode()" class="bg-amber-600 px-3 py-1 rounded font-bold text-white">SETUP MODE</button>
+            <span class="text-slate-400 font-medium">Engine State:</span>
+            <span id="mode-status-badge" class="bg-emerald-600 px-3 py-1 rounded font-bold text-white">GAME ACTIVE</span>
         </div>
     </div>
 
@@ -108,8 +116,8 @@
 
     <main class="max-w-7xl mx-auto p-2 space-y-4">
         
-        <div class="bg-slate-800 p-2 rounded-xl border border-slate-700 flex justify-between items-center px-4 shadow-sm">
-            <span class="text-xs text-slate-400 font-medium" id="status-hint">Setup Mode: Click map location to drop a predefined station marker.</span>
+        <div class="bg-slate-800 p-2 rounded-xl border border-slate-700 flex flex-wrap justify-between items-center px-4 shadow-sm gap-2">
+            <span class="text-xs text-slate-400 font-medium" id="status-hint">Loading layout configuration context...</span>
             <div class="flex items-center gap-3">
                 <span class="text-xs text-slate-400 font-bold">Zoom Scale:</span>
                 <input type="range" id="zoomSlider" min="0.3" max="2.0" step="0.05" value="0.6" oninput="applyZoomFactor()" class="w-28 accent-teal-500">
@@ -130,280 +138,279 @@
                 <span id="registry-counter" class="bg-slate-900 text-slate-400 px-2 py-0.5 rounded text-[10px] font-mono">0 Loaded</span>
             </h3>
             <div id="registry-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-xs">
-                <div class="text-slate-500 italic col-span-full py-2">No stations assigned to map yet. Use Setup Mode above.</div>
+                <div class="text-slate-500 italic col-span-full py-2">No stations assigned to map yet. Select Admin role above to add locations.</div>
             </div>
         </section>
     </main>
 
     <script>
-        // Pre-populated Master Registry Source Array Checklist
-        // Complete actual master dataset compiled directly from your source spreadsheet asset
-const MASTER_STATIONS_REGISTRY = [
-    { name: "Бульвар Рокоссовского", lines: ["1", "14"] },
-    { name: "Черкизовская-Локомотив", lines: ["1", "14"] },
-    { name: "Преображенская площадь", lines: ["1"] },
-    { name: "Сокольники-Митьково", lines: ["1", "11", "D3"] },
-    { name: "Красносельская", lines: ["1"] },
-    { name: "Комсомольская-Площадь трёх вокзалов", lines: ["1", "5", "D2", "D4"] },
-    { name: "Красные Ворота", lines: ["1"] },
-    { name: "Чистые пруды-Тургеневская-Сретенский бульвар", lines: ["1", "6", "10"] },
-    { name: "Лубянка-Кузнецкий Мост", lines: ["1", "7"] },
-    { name: "Охотный Ряд-Театральная-Площадь Революции", lines: ["1", "2", "3"] },
-    { name: "Библиотека имени Ленина-Арбатская-Александровский сад-Боровицкая", lines: ["1", "3", "4", "9"] },
-    { name: "Кропоткинская", lines: ["1"] },
-    { name: "Парк культуры", lines: ["1", "5"] },
-    { name: "Фрунзенская", lines: ["1"] },
-    { name: "Спортивная-Лужники", lines: ["1", "14"] },
-    { name: "Воробьёвы горы", lines: ["1"] },
-    { name: "Университет", lines: ["1"] },
-    { name: "Проспект Вернадского", lines: ["1", "11"] },
-    { name: "Юго-Западная", lines: ["1"] },
-    { name: "Тропарёво", lines: ["1"] },
-    { name: "Румянцево", lines: ["1"] },
-    { name: "Саларьево", lines: ["1"] },
-    { name: "Филатов Луг", lines: ["1"] },
-    { name: "Прокшино", lines: ["1"] },
-    { name: "Ольховая", lines: ["1"] },
-    { name: "Новомосковская", lines: ["1", "16"] },
-    { name: "Потапово", lines: ["1"] },
-    { name: "Ховрино", lines: ["2", "D3"] },
-    { name: "Беломорская", lines: ["2"] },
-    { name: "Речной вокзал", lines: ["2"] },
-    { name: "Водный стадион", lines: ["2"] },
-    { name: "Войковская-Балтийская", lines: ["2", "14", "D2"] },
-    { name: "Сокол", lines: ["2"] },
-    { name: "Аэропорт", lines: ["2"] },
-    { name: "Динамо-Петровский парк", lines: ["2", "11"] },
-    { name: "Белорусская", lines: ["2", "5", "D1", "D4"] },
-    { name: "Маяковская", lines: ["2"] },
-    { name: "Тверская-Пушкинская-Чеховская", lines: ["2", "7", "9"] },
-    { name: "Новокузнецкая-Третьяковская", lines: ["2", "6", "8"] },
-    { name: "Павелецкая", lines: ["2", "5"] },
-    { name: "Автозаводская", lines: ["2", "14"] },
-    { name: "Технопарк", lines: ["2"] },
-    { name: "Коломенская", lines: ["2"] },
-    { name: "Каширская", lines: ["2", "11"] },
-    { name: "Кантемировская", lines: ["2"] },
-    { name: "Царицыно", lines: ["2", "D2"] },
-    { name: "Орехово", lines: ["2"] },
-    { name: "Домодедовская", lines: ["2"] },
-    { name: "Красногвардейская-Зябликово", lines: ["2", "10"] },
-    { name: "Алма-Атинская", lines: ["2"] },
-    { name: "Пятницкое шоссе", lines: ["3"] },
-    { name: "Митино", lines: ["3"] },
-    { name: "Волоколамская", lines: ["3", "D2"] },
-    { name: "Мякинино", lines: ["3"] },
-    { name: "Строгино", lines: ["3"] },
-    { name: "Крылатское", lines: ["3"] },
-    { name: "Молодёжная", lines: ["3"] },
-    { name: "Кунцевская", lines: ["3", "4", "11", "D1"] },
-    { name: "Славянский бульвар", lines: ["3", "D1"] },
-    { name: "Парк Победы-Поклонная", lines: ["3", "8A", "D4"] },
-    { name: "Киевская", lines: ["3", "4", "5"] },
-    { name: "Смоленская-3", lines: ["3"] },
-    { name: "Курская-Чкаловская", lines: ["3", "5", "10", "D2", "D4"] },
-    { name: "Бауманская", lines: ["3"] },
-    { name: "Электрозаводская", lines: ["3", "11", "D3"] },
-    { name: "Семёновская", lines: ["3"] },
-    { name: "Партизанская-Измайлово", lines: ["3", "14"] },
-    { name: "Измайловская", lines: ["3"] },
-    { name: "Первомайская", lines: ["3"] },
-    { name: "Щёлковская", lines: ["3"] },
-    { name: "Кутузовская", lines: ["4", "14", "D4"] },
-    { name: "Студенческая", lines: ["4"] },
-    { name: "Москва-Сити", lines: ["4A", "14", "D1", "D4"] },
-    { name: "Деловой центр", lines: ["4A", "8A"] },
-    { name: "Фили", lines: ["4", "D1"] },
-    { name: "Багратионовская", lines: ["4"] },
-    { name: "Филёвский парк", lines: ["4"] },
-    { name: "Пионерская", lines: ["4"] },
-    { name: "Смоленская-4", lines: ["4"] },
-    { name: "Арбатская-4", lines: ["4"] },
-    { name: "Краснопресненская-Баррикадная", lines: ["5", "7"] },
-    { name: "Новослободская-Менделеевская", lines: ["5", "9"] },
-    { name: "Проспект Мира", lines: ["5", "6"] },
-    { name: "Таганская-Марксистская", lines: ["5", "7", "8"] },
-    { name: "Добрынинская-Серпуховская", lines: ["5", "9"] },
-    { name: "Октябрьская", lines: ["5", "6"] },
-    { name: "Медведково", lines: ["6"] },
-    { name: "Бабушкинская", lines: ["6"] },
-    { name: "Свиблово", lines: ["6"] },
-    { name: "Ботанический сад", lines: ["6", "14"] },
-    { name: "ВДНХ", lines: ["6"] },
-    { name: "Алексеевская", lines: ["6"] },
-    { name: "Рижская", lines: ["6", "11", "D2", "D4"] },
-    { name: "Сухаревская", lines: ["6"] },
-    { name: "Китай-город", lines: ["6", "7"] },
-    { name: "Шаболовская", lines: ["6"] },
-    { name: "Ленинский проспект-Площадь Гагарина", lines: ["6", "14"] },
-    { name: "Академическая", lines: ["6", "16"] },
-    { name: "Профсоюзная", lines: ["6"] },
-    { name: "Новые Черёмушки", lines: ["6"] },
-    { name: "Калужская-Воронцовская", lines: ["6", "11"] },
-    { name: "Беляево", lines: ["6"] },
-    { name: "Коньково", lines: ["6"] },
-    { name: "Тёплый Стан", lines: ["6"] },
-    { name: "Ясенево", lines: ["6"] },
-    { name: "Новоясеневская-Битцевский парк", lines: ["6", "12"] },
-    { name: "Планерная", lines: ["7"] },
-    { name: "Сходненская", lines: ["7"] },
-    { name: "Тушинская", lines: ["7", "D2"] },
-    { name: "Спартак", lines: ["7"] },
-    { name: "Щукинская", lines: ["7", "D2"] },
-    { name: "Октябрьское поле-Зорге", lines: ["7", "14"] },
-    { name: "Полежаевская-Хорошёво-Хорошёвская", lines: ["7", "11", "14"] },
-    { name: "Беговая", lines: ["7", "D1"] },
-    { name: "Улица 1905 года", lines: ["7"] },
-    { name: "Пролетарская-Крестьянская Застава", lines: ["7", "10"] },
-    { name: "Волгоградский проспект-Угрешская", lines: ["7", "14"] },
-    { name: "Текстильщики", lines: ["7", "11", "D2"] },
-    { name: "Кузьминки", lines: ["7"] },
-    { name: "Рязанский проспект", lines: ["7", "D3"] },
-    { name: "Выхино", lines: ["7", "D3"] },
-    { name: "Лермонтовский проспект-Косино", lines: ["7", "15", "D3"] },
-    { name: "Жулебино", lines: ["7"] },
-    { name: "Котельники", lines: ["7"] },
-    { name: "Новокосино-Реутов", lines: ["8", "D4"] },
-    { name: "Новогиреево", lines: ["8", "D4"] },
-    { name: "Перово-8", lines: ["8"] },
-    { name: "Шоссе Энтузиастов", lines: ["8", "14"] },
-    { name: "Авиамоторная", lines: ["8", "11"] },
-    { name: "Площадь Ильича-Римская-Москва-Товарная-Серп и Молот", lines: ["8", "10", "D2", "D4"] },
-    { name: "Минская", lines: ["8A", "D4"] },
-    { name: "Ломоносовский проспект", lines: ["8A"] },
-    { name: "Раменки", lines: ["8A"] },
-    { name: "Мичуринский проспект", lines: ["8A", "11"] },
-    { name: "Озёрная", lines: ["8A"] },
-    { name: "Говорово", lines: ["8A"] },
-    { name: "Солнцево", lines: ["8A"] },
-    { name: "Боровское шоссе", lines: ["8A"] },
-    { name: "Новопеределкино-8А", lines: ["8A"] },
-    { name: "Рассказовка", lines: ["8A"] },
-    { name: "Пыхтино", lines: ["8A"] },
-    { name: "Аэропорт Внуково", lines: ["8A"] },
-    { name: "Алтуфьево", lines: ["9"] },
-    { name: "Бибирево", lines: ["9"] },
-    { name: "Отрадное", lines: ["9"] },
-    { name: "Владыкино", lines: ["9", "14"] },
-    { name: "Петровско-Разумовская", lines: ["9", "10", "D1", "D3"] },
-    { name: "Тимирязевская", lines: ["9", "D1"] },
-    { name: "Дмитровская", lines: ["9", "D2"] },
-    { name: "Савёловская", lines: ["9", "11", "D1"] },
-    { name: "Цветной бульвар-Трубная", lines: ["9", "10"] },
-    { name: "Полянка", lines: ["9"] },
-    { name: "Тульская", lines: ["9"] },
-    { name: "Нагатинская-Верхние Котлы", lines: ["9", "14"] },
-    { name: "Нагорная", lines: ["9"] },
-    { name: "Нахимовский проспект", lines: ["9"] },
-    { name: "Каховская-Севастопольская", lines: ["9", "11"] },
-    { name: "Чертановская", lines: ["9"] },
-    { name: "Южная", lines: ["9"] },
-    { name: "Пражская", lines: ["9"] },
-    { name: "Улица Академика Янгеля", lines: ["9"] },
-    { name: "Аннино", lines: ["9"] },
-    { name: "Бульвар Дмитрия Донского-Улица Старокачаловская", lines: ["9", "12"] },
-    { name: "Физтех", lines: ["10"] },
-    { name: "Лианозово", lines: ["10", "D1"] },
-    { name: "Яхромская", lines: ["10"] },
-    { name: "Селигерская", lines: ["10"] },
-    { name: "Верхние Лихоборы", lines: ["10"] },
-    { name: "Окружная", lines: ["10", "14", "D1"] },
-    { name: "Фонвизинская", lines: ["10"] },
-    { name: "Бутырская-Останкино", lines: ["10", "D3"] },
-    { name: "Марьина Роща", lines: ["10", "11", "D2", "D4"] },
-    { name: "Достоевская", lines: ["10"] },
-    { name: "Дубровка", lines: ["10", "14"] },
-    { name: "Кожуховская", lines: ["10", "14"] },
-    { name: "Печатники", lines: ["10", "11", "D2"] },
-    { name: "Волжская", lines: ["10"] },
-    { name: "Люблино-10", lines: ["10"] },
-    { name: "Братиславская", lines: ["10"] },
-    { name: "Марьино", lines: ["10"] },
-    { name: "Борисово", lines: ["10"] },
-    { name: "Шипиловская", lines: ["10"] },
-    { name: "Давыдково", lines: ["11"] },
-    { name: "Аминьевская", lines: ["11", "D4"] },
-    { name: "Новаторская", lines: ["11", "16"] },
-    { name: "Зюзино", lines: ["11"] },
-    { name: "Варшавская", lines: ["11"] },
-    { name: "Кленовый бульвар", lines: ["11"] },
-    { name: "Нагатинский Затон", lines: ["11"] },
-    { name: "Нижегородская", lines: ["11", "14", "15", "D4"] },
-    { name: "Лефортово", lines: ["11"] },
-    { name: "ЦСКА", lines: ["11"] },
-    { name: "Народное Ополчение", lines: ["11"] },
-    { name: "Мнёвники", lines: ["11"] },
-    { name: "Терехово", lines: ["11"] },
-    { name: "Лесопарковая", lines: ["12"] },
-    { name: "Улица Скобелевская", lines: ["12"] },
-    { name: "Бульвар Адмирала Ушакова", lines: ["12"] },
-    { name: "Улица Горчакова", lines: ["12"] },
-    { name: "Бунинская аллея", lines: ["12"] },
-    { name: "Шелепиха", lines: ["14"] },
-    { name: "Крымская", lines: ["14", "16"] },
-    { name: "ЗИЛ", lines: ["14", "16"] },
-    { name: "Новохохловская", lines: ["14", "D2"] },
-    { name: "Андроновка", lines: ["14", "D3"] },
-    { name: "Соколиная Гора", lines: ["14"] },
-    { name: "Белокаменная", lines: ["14"] },
-    { name: "Ростокино", lines: ["14"] },
-    { name: "Лихоборы", lines: ["14", "D3"] },
-    { name: "Коптево", lines: ["14"] },
-    { name: "Панфиловская", lines: ["14", "7"] },
-    { name: "Стрешнево", lines: ["14", "D2", "2"] },
-    { name: "Стахановская", lines: ["15"] },
-    { name: "Окская", lines: ["15"] },
-    { name: "Юго-Восточная", lines: ["15"] },
-    { name: "Улица Дмитриевского", lines: ["15"] },
-    { name: "Лухмановская", lines: ["15"] },
-    { name: "Некрасовка", lines: ["15"] },
-    { name: "Вавиловская", lines: ["16"] },
-    { name: "Университет Дружбы Народов", lines: ["16"] },
-    { name: "Генерала Тюленева", lines: ["16"] },
-    { name: "Тютчевская", lines: ["16"] },
-    { name: "Корниловская", lines: ["16"] },
-    { name: "Коммунарка", lines: ["16"] },
-    { name: "Сетунь", lines: ["D1"] },
-    { name: "Рабочий Посёлок", lines: ["D1"] },
-    { name: "Дегунино", lines: ["D1"] },
-    { name: "Бескудниково", lines: ["D1"] },
-    { name: "Марк", lines: ["D1"] },
-    { name: "Трикотажная", lines: ["D2"] },
-    { name: "Красный Балтиец", lines: ["D2"] },
-    { name: "Гражданская", lines: ["D2"] },
-    { name: "Калитники", lines: ["D2"] },
-    { name: "Люблино-D2", lines: ["D2"] },
-    { name: "Депо", lines: ["D2"] },
-    { name: "Перерва", lines: ["D2"] },
-    { name: "Курьяново", lines: ["D2"] },
-    { name: "Москворечье", lines: ["D2"] },
-    { name: "Покровское", lines: ["D2"] },
-    { name: "Красный Строитель", lines: ["D2"] },
-    { name: "Битца", lines: ["D2"] },
-    { name: "Бутово", lines: ["D2"] },
-    { name: "Щербинка", lines: ["D2"] },
-    { name: "Остафьево", lines: ["D2"] },
-    { name: "Грачёвская", lines: ["D3"] },
-    { name: "Моссельмаш", lines: ["D3"] },
-    { name: "Сортировочная", lines: ["D3"] },
-    { name: "Перово-D3", lines: ["D3", "D4"] },
-    { name: "Плющево", lines: ["D3"] },
-    { name: "Вешняки", lines: ["D3", "7"] },
-    { name: "Косино", lines: ["D3", "7", "15"] },
-    { name: "Ухтомская", lines: ["D3"] },
-    { name: "Внуково", lines: ["D4"] },
-    { name: "Мичуринец", lines: ["D4"] },
-    { name: "Переделкино", lines: ["D4"] },
-    { name: "Солнечная", lines: ["D4", "D4A"] },
-    { name: "Новопеределкино-D4A", lines: ["D4"] },
-    { name: "Мещерская", lines: ["D4"] },
-    { name: "Очаково", lines: ["D4"] },
-    { name: "Матвеевская", lines: ["D4"] },
-    { name: "Чухлинка", lines: ["D4", "D3"] },
-    { name: "Кусково", lines: ["D4"] }
-];
+        // Master Dataset Source Array Checklist
+        const MASTER_STATIONS_REGISTRY = [
+            { name: "Бульвар Рокоссовского", lines: ["1", "14"] },
+            { name: "Черкизовская-Локомотив", lines: ["1", "14"] },
+            { name: "Преображенская площадь", lines: ["1"] },
+            { name: "Сокольники-Митьково", lines: ["1", "11", "D3"] },
+            { name: "Красносельская", lines: ["1"] },
+            { name: "Комсомольская-Площадь трёх вокзалов", lines: ["1", "5", "D2", "D4"] },
+            { name: "Красные Ворота", lines: ["1"] },
+            { name: "Чистые пруды-Тургеневская-Сретенский бульвар", lines: ["1", "6", "10"] },
+            { name: "Лубянка-Кузнецкий Мост", lines: ["1", "7"] },
+            { name: "Охотный Ряд-Театральная-Площадь Революции", lines: ["1", "2", "3"] },
+            { name: "Библиотека имени Ленина-Арбатская-Александровский сад-Боровицкая", lines: ["1", "3", "4", "9"] },
+            { name: "Кропоткинская", lines: ["1"] },
+            { name: "Парк культуры", lines: ["1", "5"] },
+            { name: "Фрунзенская", lines: ["1"] },
+            { name: "Спортивная-Лужники", lines: ["1", "14"] },
+            { name: "Воробьёвы горы", lines: ["1"] },
+            { name: "Университет", lines: ["1"] },
+            { name: "Проспект Вернадского", lines: ["1", "11"] },
+            { name: "Юго-Западная", lines: ["1"] },
+            { name: "Тропарёво", lines: ["1"] },
+            { name: "Румянцево", lines: ["1"] },
+            { name: "Саларьево", lines: ["1"] },
+            { name: "Филатов Луг", lines: ["1"] },
+            { name: "Прокшино", lines: ["1"] },
+            { name: "Ольховая", lines: ["1"] },
+            { name: "Новомосковская", lines: ["1", "16"] },
+            { name: "Потапово", lines: ["1"] },
+            { name: "Ховрино", lines: ["2", "D3"] },
+            { name: "Беломорская", lines: ["2"] },
+            { name: "Речной вокзал", lines: ["2"] },
+            { name: "Водный стадион", lines: ["2"] },
+            { name: "Войковская-Балтийская", lines: ["2", "14", "D2"] },
+            { name: "Сокол", lines: ["2"] },
+            { name: "Аэропорт", lines: ["2"] },
+            { name: "Динамо-Петровский парк", lines: ["2", "11"] },
+            { name: "Белорусская", lines: ["2", "5", "D1", "D4"] },
+            { name: "Маяковская", lines: ["2"] },
+            { name: "Тверская-Пушкинская-Чеховская", lines: ["2", "7", "9"] },
+            { name: "Новокузнецкая-Третьяковская", lines: ["2", "6", "8"] },
+            { name: "Павелецкая", lines: ["2", "5"] },
+            { name: "Автозаводская", lines: ["2", "14"] },
+            { name: "Технопарк", lines: ["2"] },
+            { name: "Коломенская", lines: ["2"] },
+            { name: "Каширская", lines: ["2", "11"] },
+            { name: "Кантемировская", lines: ["2"] },
+            { name: "Царицыно", lines: ["2", "D2"] },
+            { name: "Орехово", lines: ["2"] },
+            { name: "Домодедовская", lines: ["2"] },
+            { name: "Красногвардейская-Зябликово", lines: ["2", "10"] },
+            { name: "Алма-Атинская", lines: ["2"] },
+            { name: "Пятницкое шоссе", lines: ["3"] },
+            { name: "Митино", lines: ["3"] },
+            { name: "Волоколамская", lines: ["3", "D2"] },
+            { name: "Мякинино", lines: ["3"] },
+            { name: "Строгино", lines: ["3"] },
+            { name: "Крылатское", lines: ["3"] },
+            { name: "Молодёжная", lines: ["3"] },
+            { name: "Кунцевская", lines: ["3", "4", "11", "D1"] },
+            { name: "Славянский бульвар", lines: ["3", "D1"] },
+            { name: "Парк Победы-Поклонная", lines: ["3", "8A", "D4"] },
+            { name: "Киевская", lines: ["3", "4", "5"] },
+            { name: "Смоленская-3", lines: ["3"] },
+            { name: "Курская-Чкаловская", lines: ["3", "5", "10", "D2", "D4"] },
+            { name: "Бауманская", lines: ["3"] },
+            { name: "Электрозаводская", lines: ["3", "11", "D3"] },
+            { name: "Семёновская", lines: ["3"] },
+            { name: "Партизанская-Измайлово", lines: ["3", "14"] },
+            { name: "Измайловская", lines: ["3"] },
+            { name: "Первомайская", lines: ["3"] },
+            { name: "Щёлковская", lines: ["3"] },
+            { name: "Кутузовская", lines: ["4", "14", "D4"] },
+            { name: "Студенческая", lines: ["4"] },
+            { name: "Москва-Сити", lines: ["4A", "14", "D1", "D4"] },
+            { name: "Деловой центр", lines: ["4A", "8A"] },
+            { name: "Фили", lines: ["4", "D1"] },
+            { name: "Багратионовская", lines: ["4"] },
+            { name: "Филёвский парк", lines: ["4"] },
+            { name: "Пионерская", lines: ["4"] },
+            { name: "Смоленская-4", lines: ["4"] },
+            { name: "Арбатская-4", lines: ["4"] },
+            { name: "Краснопресненская-Баррикадная", lines: ["5", "7"] },
+            { name: "Новослободская-Менделеевская", lines: ["5", "9"] },
+            { name: "Проспект Мира", lines: ["5", "6"] },
+            { name: "Таганская-Марксистская", lines: ["5", "7", "8"] },
+            { name: "Добрынинская-Серпуховская", lines: ["5", "9"] },
+            { name: "Октябрьская", lines: ["5", "6"] },
+            { name: "Медведково", lines: ["6"] },
+            { name: "Бабушкинская", lines: ["6"] },
+            { name: "Свиблово", lines: ["6"] },
+            { name: "Ботанический сад", lines: ["6", "14"] },
+            { name: "ВДНХ", lines: ["6"] },
+            { name: "Алексеевская", lines: ["6"] },
+            { name: "Рижская", lines: ["6", "11", "D2", "D4"] },
+            { name: "Сухаревская", lines: ["6"] },
+            { name: "Китай-город", lines: ["6", "7"] },
+            { name: "Шаболовская", lines: ["6"] },
+            { name: "Ленинский проспект-Площадь Гагарина", lines: ["6", "14"] },
+            { name: "Академическая", lines: ["6", "16"] },
+            { name: "Профсоюзная", lines: ["6"] },
+            { name: "Новые Черёмушки", lines: ["6"] },
+            { name: "Калужская-Воронцовская", lines: ["6", "11"] },
+            { name: "Беляево", lines: ["6"] },
+            { name: "Коньково", lines: ["6"] },
+            { name: "Тёплый Стан", lines: ["6"] },
+            { name: "Ясенево", lines: ["6"] },
+            { name: "Новоясеневская-Битцевский парк", lines: ["6", "12"] },
+            { name: "Планерная", lines: ["7"] },
+            { name: "Сходненская", lines: ["7"] },
+            { name: "Тушинская", lines: ["7", "D2"] },
+            { name: "Спартак", lines: ["7"] },
+            { name: "Щукинская", lines: ["7", "D2"] },
+            { name: "Октябрьское поле-Зорге", lines: ["7", "14"] },
+            { name: "Полежаевская-Хорошёво-Хорошёвская", lines: ["7", "11", "14"] },
+            { name: "Беговая", lines: ["7", "D1"] },
+            { name: "Улица 1905 года", lines: ["7"] },
+            { name: "Пролетарская-Крестьянская Застава", lines: ["7", "10"] },
+            { name: "Волгоградский проспект-Угрешская", lines: ["7", "14"] },
+            { name: "Текстильщики", lines: ["7", "11", "D2"] },
+            { name: "Кузьминки", lines: ["7"] },
+            { name: "Рязанский проспект", lines: ["7", "D3"] },
+            { name: "Выхино", lines: ["7", "D3"] },
+            { name: "Лермонтовский проспект-Косино", lines: ["7", "15", "D3"] },
+            { name: "Жулебино", lines: ["7"] },
+            { name: "Котельники", lines: ["7"] },
+            { name: "Новокосино-Реутов", lines: ["8", "D4"] },
+            { name: "Новогиреево", lines: ["8", "D4"] },
+            { name: "Перово-8", lines: ["8"] },
+            { name: "Шоссе Энтузиастов", lines: ["8", "14"] },
+            { name: "Авиамоторная", lines: ["8", "11"] },
+            { name: "Площадь Ильича-Римская-Москва-Товарная-Серп и Молот", lines: ["8", "10", "D2", "D4"] },
+            { name: "Минская", lines: ["8A", "D4"] },
+            { name: "Ломоносовский проспект", lines: ["8A"] },
+            { name: "Раменки", lines: ["8A"] },
+            { name: "Мичуринский проспект", lines: ["8A", "11"] },
+            { name: "Озёрная", lines: ["8A"] },
+            { name: "Говорово", lines: ["8A"] },
+            { name: "Солнцево", lines: ["8A"] },
+            { name: "Боровское шоссе", lines: ["8A"] },
+            { name: "Новопеределкино-8А", lines: ["8A"] },
+            { name: "Рассказовка", lines: ["8A"] },
+            { name: "Пыхтино", lines: ["8A"] },
+            { name: "Аэропорт Внуково", lines: ["8A"] },
+            { name: "Алтуфьево", lines: ["9"] },
+            { name: "Бибирево", lines: ["9"] },
+            { name: "Отрадное", lines: ["9"] },
+            { name: "Владыкино", lines: ["9", "14"] },
+            { name: "Петровско-Разумовская", lines: ["9", "10", "D1", "D3"] },
+            { name: "Тимирязевская", lines: ["9", "D1"] },
+            { name: "Дмитровская", lines: ["9", "D2"] },
+            { name: "Савёловская", lines: ["9", "11", "D1"] },
+            { name: "Цветной бульвар-Трубная", lines: ["9", "10"] },
+            { name: "Полянка", lines: ["9"] },
+            { name: "Тульская", lines: ["9"] },
+            { name: "Нагатинская-Верхние Котлы", lines: ["9", "14"] },
+            { name: "Нагорная", lines: ["9"] },
+            { name: "Нахимовский проспект", lines: ["9"] },
+            { name: "Каховская-Севастопольская", lines: ["9", "11"] },
+            { name: "Чертановская", lines: ["9"] },
+            { name: "Южная", lines: ["9"] },
+            { name: "Пражская", lines: ["9"] },
+            { name: "Улица Академика Янгеля", lines: ["9"] },
+            { name: "Аннино", lines: ["9"] },
+            { name: "Бульвар Дмитрия Донского-Улица Старокачаловская", lines: ["9", "12"] },
+            { name: "Физтех", lines: ["10"] },
+            { name: "Лианозово", lines: ["10", "D1"] },
+            { name: "Яхромская", lines: ["10"] },
+            { name: "Селигерская", lines: ["10"] },
+            { name: "Верхние Лихоборы", lines: ["10"] },
+            { name: "Окружная", lines: ["10", "14", "D1"] },
+            { name: "Фонвизинская", lines: ["10"] },
+            { name: "Бутырская-Останкино", lines: ["10", "D3"] },
+            { name: "Марьина Роща", lines: ["10", "11", "D2", "D4"] },
+            { name: "Достоевская", lines: ["10"] },
+            { name: "Дубровка", lines: ["10", "14"] },
+            { name: "Кожуховская", lines: ["10", "14"] },
+            { name: "Печатники", lines: ["10", "11", "D2"] },
+            { name: "Волжская", lines: ["10"] },
+            { name: "Люблино-10", lines: ["10"] },
+            { name: "Братиславская", lines: ["10"] },
+            { name: "Марьино", lines: ["10"] },
+            { name: "Борисово", lines: ["10"] },
+            { name: "Шипиловская", lines: ["10"] },
+            { name: "Давыдково", lines: ["11"] },
+            { name: "Аминьевская", lines: ["11", "D4"] },
+            { name: "Новаторская", lines: ["11", "16"] },
+            { name: "Зюзино", lines: ["11"] },
+            { name: "Варшавская", lines: ["11"] },
+            { name: "Кленовый бульвар", lines: ["11"] },
+            { name: "Нагатинский Затон", lines: ["11"] },
+            { name: "Нижегородская", lines: ["11", "14", "15", "D4"] },
+            { name: "Лефортово", lines: ["11"] },
+            { name: "ЦСКА", lines: ["11"] },
+            { name: "Народное Ополчение", lines: ["11"] },
+            { name: "Мнёвники", lines: ["11"] },
+            { name: "Терехово", lines: ["11"] },
+            { name: "Лесопарковая", lines: ["12"] },
+            { name: "Улица Скобелевская", lines: ["12"] },
+            { name: "Бульвар Адмирала Ушакова", lines: ["12"] },
+            { name: "Улица Горчакова", lines: ["12"] },
+            { name: "Бунинская аллея", lines: ["12"] },
+            { name: "Шелепиха", lines: ["14"] },
+            { name: "Крымская", lines: ["14", "16"] },
+            { name: "ЗИЛ", lines: ["14", "16"] },
+            { name: "Новохохловская", lines: ["14", "D2"] },
+            { name: "Андроновка", lines: ["14", "D3"] },
+            { name: "Соколиная Гора", lines: ["14"] },
+            { name: "Белокаменная", lines: ["14"] },
+            { name: "Ростокино", lines: ["14"] },
+            { name: "Лихоборы", lines: ["14", "D3"] },
+            { name: "Коптево", lines: ["14"] },
+            { name: "Панфиловская", lines: ["14", "7"] },
+            { name: "Стрешнево", lines: ["14", "D2", "2"] },
+            { name: "Стахановская", lines: ["15"] },
+            { name: "Окская", lines: ["15"] },
+            { name: "Юго-Восточная", lines: ["15"] },
+            { name: "Улица Дмитриевского", lines: ["15"] },
+            { name: "Лухмановская", lines: ["15"] },
+            { name: "Некрасовка", lines: ["15"] },
+            { name: "Вавиловская", lines: ["16"] },
+            { name: "Университет Дружбы Народов", lines: ["16"] },
+            { name: "Генерала Тюленева", lines: ["16"] },
+            { name: "Тютчевская", lines: ["16"] },
+            { name: "Корниловская", lines: ["16"] },
+            { name: "Коммунарка", lines: ["16"] },
+            { name: "Сетунь", lines: ["D1"] },
+            { name: "Рабочий Посёлок", lines: ["D1"] },
+            { name: "Дегунино", lines: ["D1"] },
+            { name: "Бескудниково", lines: ["D1"] },
+            { name: "Марк", lines: ["D1"] },
+            { name: "Трикотажная", lines: ["D2"] },
+            { name: "Красный Балтиец", lines: ["D2"] },
+            { name: "Гражданская", lines: ["D2"] },
+            { name: "Калитники", lines: ["D2"] },
+            { name: "Люблино-D2", lines: ["D2"] },
+            { name: "Депо", lines: ["D2"] },
+            { name: "Перерва", lines: ["D2"] },
+            { name: "Курьяново", lines: ["D2"] },
+            { name: "Москворечье", lines: ["D2"] },
+            { name: "Покровское", lines: ["D2"] },
+            { name: "Красный Строитель", lines: ["D2"] },
+            { name: "Битца", lines: ["D2"] },
+            { name: "Бутово", lines: ["D2"] },
+            { name: "Щербинка", lines: ["D2"] },
+            { name: "Остафьево", lines: ["D2"] },
+            { name: "Грачёвская", lines: ["D3"] },
+            { name: "Моссельмаш", lines: ["D3"] },
+            { name: "Сортировочная", lines: ["D3"] },
+            { name: "Перово-D3", lines: ["D3", "D4"] },
+            { name: "Плющево", lines: ["D3"] },
+            { name: "Вешняки", lines: ["D3", "7"] },
+            { name: "Косино", lines: ["D3", "7", "15"] },
+            { name: "Ухтомская", lines: ["D3"] },
+            { name: "Внуково", lines: ["D4"] },
+            { name: "Мичуринец", lines: ["D4"] },
+            { name: "Переделкино", lines: ["D4"] },
+            { name: "Солнечная", lines: ["D4", "D4A"] },
+            { name: "Новопеределкино-D4A", lines: ["D4"] },
+            { name: "Мещерская", lines: ["D4"] },
+            { name: "Очаково", lines: ["D4"] },
+            { name: "Матвеевская", lines: ["D4"] },
+            { name: "Чухлинка", lines: ["D4", "D3"] },
+            { name: "Кусково", lines: ["D4"] }
+        ];
 
-        let isSetupMode = true;
+        let currentRole = "player1"; // Default role initialization
         let gameRoomId = "moscow-clash-1";
         let localState = {
             players: { 1: { chips: 20, stationsCount: 0 }, 2: { chips: 20, stationsCount: 0 } },
@@ -412,9 +419,10 @@ const MASTER_STATIONS_REGISTRY = [
 
         document.addEventListener("DOMContentLoaded", () => {
             applyZoomFactor();
-            renderActiveOverlayPins();
+            handleRoleChange();
+            initializeLiveSync(); // Auto-start listening on initialization
             
-            // Drag and scroll mapping logic initialization 
+            // Drag and scroll map canvas interaction logic 
             const slider = document.getElementById('mapFrame');
             let isDown = false; let startX, startY, scrollLeft, scrollTop;
             slider.addEventListener('mousedown', (e) => {
@@ -437,129 +445,138 @@ const MASTER_STATIONS_REGISTRY = [
             document.getElementById('mapCanvas').style.transform = `scale(${val})`;
         }
 
-        function toggleMode() {
-            isSetupMode = !isSetupMode;
-            const btn = document.getElementById('mode-toggle-btn');
+        function handleRoleChange() {
+            currentRole = document.getElementById('role-selector').value;
+            const badge = document.getElementById('mode-status-badge');
             const hint = document.getElementById('status-hint');
-            if (isSetupMode) {
-                btn.textContent = "SETUP MODE"; btn.className = "bg-amber-600 px-3 py-1 rounded font-bold text-white";
-                hint.textContent = "Setup Mode: Click map location to drop a predefined station marker.";
+
+            if (currentRole === 'admin') {
+                badge.textContent = "SETUP MODE (ADMIN)";
+                badge.className = "bg-amber-600 px-3 py-1 rounded font-bold text-white";
+                hint.textContent = "Admin Control: Click on map canvas locations to drop predefined stations.";
             } else {
-                btn.textContent = "GAME ACTIVE"; btn.className = "bg-emerald-600 px-3 py-1 rounded font-bold text-white animate-pulse";
-                hint.textContent = "Game Active Mode: Select markers to execute claims, flips, or track fares.";
+                badge.textContent = "GAME ACTIVE";
+                badge.className = "bg-emerald-600 px-3 py-1 rounded font-bold text-white animate-pulse";
+                hint.textContent = `Active Role: ${currentRole === 'player1' ? 'Player 1' : 'Player 2'}. Click existing station markers to claim, flip, or track rent.`;
             }
+            renderActiveOverlayPins();
         }
 
         function handleCanvasInteraction(event) {
-    if (!isSetupMode) return;
-    const rect = document.getElementById('baseMapImg').getBoundingClientRect();
-    const x = ((event.clientX - rect.left) / rect.width) * 100;
-    const y = ((event.clientY - rect.top) / rect.height) * 100;
+            if (currentRole !== 'admin') return; // Enforce layout mapping exclusively to admin role
+            
+            const rect = document.getElementById('baseMapImg').getBoundingClientRect();
+            const x = ((event.clientX - rect.left) / rect.width) * 100;
+            const y = ((event.clientY - rect.top) / rect.height) * 100;
 
-    let inputSearch = prompt("Type part of the Moscow station name to filter and select:");
-    if (!inputSearch) return;
+            let inputSearch = prompt("Type part of the Moscow station name to filter and select:");
+            if (!inputSearch) return;
 
-    let matches = MASTER_STATIONS_REGISTRY.filter(s => s.name.toLowerCase().includes(inputSearch.toLowerCase()));
-    if (matches.length === 0) { alert("No matching station found in registry!"); return; }
-    
-    // 2) Requirement Fix: Display format tracking "index - Station Name - Lines X, Y"
-    let promptText = "Select exact station index matching:\n";
-    matches.forEach((m, idx) => { 
-        promptText += `${idx} - ${m.name} - Lines ${m.lines.join(', ')}\n`; 
-    });
-    let selectionIndex = parseInt(prompt(promptText, "0"));
-    
-    if (isNaN(selectionIndex) || selectionIndex < 0 || selectionIndex >= matches.length) { alert("Selection canceled."); return; }
-    let chosenStation = matches[selectionIndex];
+            let matches = MASTER_STATIONS_REGISTRY.filter(s => s.name.toLowerCase().includes(inputSearch.toLowerCase()));
+            if (matches.length === 0) { alert("No matching station found in registry!"); return; }
+            
+            let promptText = "Select exact station index matching:\n";
+            matches.forEach((m, idx) => { 
+                promptText += `${idx} - ${m.name} - Lines ${m.lines.join(', ')}\n`; 
+            });
+            let selectionIndex = parseInt(prompt(promptText, "0"));
+            
+            if (isNaN(selectionIndex) || selectionIndex < 0 || selectionIndex >= matches.length) { alert("Selection canceled."); return; }
+            let chosenStation = matches[selectionIndex];
 
-    if (localState.boundPins.some(p => p.name === chosenStation.name)) { alert("This station is already assigned on your system layout map!"); return; }
+            if (localState.boundPins.some(p => p.name === chosenStation.name)) { alert("This station is already assigned on your system layout map!"); return; }
 
-    const newPin = {
-        id: 'station_' + Date.now(),
-        x: x, y: y,
-        name: chosenStation.name, // Preserves original text exactly
-        owner: null,
-        chips: 0
-    };
+            const newPin = {
+                id: 'station_' + Date.now(),
+                x: x, y: y,
+                name: chosenStation.name,
+                owner: null,
+                chips: 0
+            };
 
-    localState.boundPins.push(newPin);
-    renderActiveOverlayPins();
-    pushStateToCloudRelay();
-}
+            localState.boundPins.push(newPin);
+            updateCalculationsAndRegistry();
+            pushStateToCloudRelay();
+        }
 
         function handlePinInteraction(pinId) {
             const pin = localState.boundPins.find(p => p.id === pinId);
             if (!pin) return;
 
-            if (isSetupMode) {
+            if (currentRole === 'admin') {
                 if (confirm(`Remove station marker anchor for "${pin.name}"?`)) {
                     localState.boundPins = localState.boundPins.filter(p => p.id !== pinId);
-                    renderActiveOverlayPins(); pushStateToCloudRelay();
+                    updateCalculationsAndRegistry(); 
+                    pushStateToCloudRelay();
                 }
                 return;
             }
 
+            // Game Action Routing based on player actions
+            const actingPlayerNum = currentRole === 'player1' ? 1 : 2;
+            const opposingPlayerNum = actingPlayerNum === 1 ? 2 : 1;
+
             let activePromptText = `Station Selected: ${pin.name}\n`;
             activePromptText += `Current Alignment: ${pin.owner ? 'Player ' + pin.owner : 'Neutral (White)'}\n`;
-            activePromptText += `Fortification Weight resting on Station: ${pin.chips} Chips\n\n`;
-            activePromptText += `Choose action path index:\n1 - Claim / Flip as Player 1\n2 - Claim / Flip as Player 2\n3 - Process Pass-Through Rent/Fare\n4 - Reset Station to Neutral`;
+            activePromptText += `Fortification Value resting on Station: ${pin.chips} Chips\n\n`;
+            activePromptText += `Choose action path index:\n1 - Claim / Flip Station\n2 - Process Pass-Through Rent (Fails flip check)\n3 - Reset Station to Neutral`;
 
             let gameSelection = prompt(activePromptText);
             if (!gameSelection) return;
 
-            if (gameSelection === "1" || gameSelection === "2") {
-                const currentPlayer = parseInt(gameSelection);
-                
+            if (gameSelection === "1") {
                 if (pin.owner === null) {
+                    // Claiming open neutral station
                     let stake = parseInt(prompt("Enter initial chips to stake on this open station (Allowed bounds: 1 to 5 chips):", "1")) || 1;
                     if (stake < 1 || stake > 5) { alert("Error: Initial neutral claims must be balanced between 1 and 5 chips!"); return; }
-                    if (localState.players[currentPlayer].chips < stake) { alert("Transaction Terminated: Insufficient chip wallet reserves!"); return; }
                     
-                    localState.players[currentPlayer].chips -= stake;
-                    pin.owner = currentPlayer;
+                    localState.players[actingPlayerNum].chips -= stake;
+                    pin.owner = actingPlayerNum;
                     pin.chips = stake;
-                } else if (pin.owner === currentPlayer) {
+                } else if (pin.owner === actingPlayerNum) {
+                    // Adding defense to own asset
                     let addChips = parseInt(prompt("Enter additional chips to add to your fortification (Max 5):", "1")) || 1;
                     if (addChips < 1 || addChips > 5) { alert("Must be between 1 and 5 chips."); return; }
-                    if (localState.players[currentPlayer].chips < addChips) { alert("Insufficient chips!"); return; }
-                    localState.players[currentPlayer].chips -= addChips;
+                    
+                    localState.players[actingPlayerNum].chips -= addChips;
                     pin.chips += addChips;
                 } else {
-                    let minFlip = pin.chips + 1;
-                    let maxFlip = pin.chips + 5;
+                    // Flipping opponent's territory rules validation logic
+                    let requiredMinFlip = pin.chips + 1;
+                    let allowedMaxFlip = pin.chips + 5;
                     
-                    let flipStakeInput = parseInt(prompt(`Station is held by enemy. Enter total chip stake to flip and fortify this asset (Enforced boundary limits: ${minFlip} to ${maxFlip} chips):`, minFlip.toString()));
+                    let flipStakeInput = parseInt(prompt(`Station is held by enemy. Enter total chip stake to flip and fortify this asset (Enforced boundary limits: ${requiredMinFlip} to ${allowedMaxFlip} total chips):`, requiredMinFlip.toString()));
                     
-                    if (isNaN(flipStakeInput) || flipStakeInput < minFlip || flipStakeInput > maxFlip) {
-                        alert(`Error: Flip stake fails validation bounds! Your input must be between ${minFlip} and ${maxFlip} total chips.`);
+                    if (isNaN(flipStakeInput) || flipStakeInput < requiredMinFlip || flipStakeInput > allowedMaxFlip) {
+                        alert(`Error: Flip stake fails validation bounds! Input must be between ${requiredMinFlip} and ${allowedMaxFlip} total chips.`);
                         return;
                     }
                     
-                    if (localState.players[currentPlayer].chips < flipStakeInput) { alert("Flipping Error: Insufficient tokens in active wallet balance tracker!"); return; }
-                    
-                    localState.players[currentPlayer].chips -= flipStakeInput;
-                    pin.owner = currentPlayer;
+                    localState.players[actingPlayerNum].chips -= flipStakeInput;
+                    pin.owner = actingPlayerNum;
                     pin.chips = flipStakeInput;
                 }
-            } else if (gameSelection === "3") {
-                let traveler = parseInt(prompt("Which player is moving through this territory line block? (Type 1 or 2):"));
-                if (traveler === 1 || traveler === 2) {
-                    let beneficiary = traveler === 1 ? 2 : 1;
-                    let rentDue = pin.chips;
-                    
-                    localState.players[traveler].chips -= rentDue;
-                    localState.players[beneficiary].chips += rentDue;
-                    alert(`Player ${traveler} processed a rent payload of ${rentDue} chips to Player ${beneficiary}. Balance shifted.`);
+            } else if (gameSelection === "2") {
+                // Rulebook compliance: forced pass-through rent handles going negative cleanly
+                if (pin.owner === null || pin.owner === actingPlayerNum) {
+                    alert("Rent can only be executed if landing on an opponent's station!");
+                    return;
                 }
-            } else if (gameSelection === "4") {
-                pin.owner = null; pin.chips = 0;
+                let rentDue = pin.chips;
+                localState.players[actingPlayerNum].chips -= rentDue;
+                localState.players[opposingPlayerNum].chips += rentDue;
+                alert(`Processed rent balance payload: Player ${actingPlayerNum} pays ${rentDue} chips to Player ${opposingPlayerNum}. Balance updated.`);
+            } else if (gameSelection === "3") {
+                if (confirm("Reset station alignment state to completely unowned?")) {
+                    pin.owner = null; 
+                    pin.chips = 0;
+                }
             }
 
             updateCalculationsAndRegistry();
             pushStateToCloudRelay();
         }
 
-        // 1) Visual Fix: Ensure elements correctly apply layers dynamically on top of coordinates
         function renderActiveOverlayPins() {
             const container = document.getElementById('pins-interaction-layer');
             container.innerHTML = '';
@@ -575,7 +592,6 @@ const MASTER_STATIONS_REGISTRY = [
                 } else if (pin.owner === 2) {
                     node.style.backgroundColor = '#2563eb'; node.style.borderColor = '#ffffff'; node.style.color = '#ffffff';
                 } else {
-                    // White background circle with dark border contour and black font text indicator
                     node.style.backgroundColor = '#ffffff'; node.style.borderColor = '#1e293b'; node.style.color = '#000000';
                 }
 
@@ -586,18 +602,15 @@ const MASTER_STATIONS_REGISTRY = [
             });
         }
 
-        // 2) Alphabetical sorting and display logic updates
         function updateCalculationsAndRegistry() {
             let p1Stations = 0, p2Stations = 0;
-            
-            // Build separate deeply cloned sorted array frame explicitly for display parsing matching rule 2
             let sortedPins = [...localState.boundPins].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
 
             const registryList = document.getElementById('registry-list');
             document.getElementById('registry-counter').textContent = `${sortedPins.length} Anchored`;
             
             if(sortedPins.length === 0) {
-                registryList.innerHTML = `<div class="text-slate-500 italic col-span-full py-2">No stations assigned to map yet. Use Setup Mode above.</div>`;
+                registryList.innerHTML = `<div class="text-slate-500 italic col-span-full py-2">No stations assigned to map yet. Select Admin role above to begin adding locations.</div>`;
             } else {
                 registryList.innerHTML = '';
                 sortedPins.forEach(pin => {
@@ -605,18 +618,18 @@ const MASTER_STATIONS_REGISTRY = [
                     if (pin.owner === 2) p2Stations++;
 
                     let card = document.createElement('div');
-                    card.className = "p-2 rounded-lg flex justify-between items-center transition ";
+                    card.className = "p-2 rounded-lg flex justify-between items-center transition cursor-pointer ";
                     
                     if(pin.owner === 1) card.className += "bg-red-950/40 border border-red-800 text-red-200";
                     else if(pin.owner === 2) card.className += "bg-blue-950/40 border border-blue-800 text-blue-200";
                     else card.className += "bg-slate-900/60 border border-slate-700 text-slate-300";
 
                     card.innerHTML = `
-    <span class="font-medium truncate max-w-[200px]" title="${pin.name}">${pin.name}</span>
-    <span class="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-950 shrink-0">
-        ${pin.owner ? `P${pin.owner} • ${pin.chips}🪙` : `Neutral • 0`}
-    </span>
-`;
+                        <span class="font-medium truncate max-w-[180px]" title="${pin.name}">${pin.name}</span>
+                        <span class="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-950 shrink-0">
+                            ${pin.owner ? `P${pin.owner} • ${pin.chips}🪙` : `Neutral`}
+                        </span>
+                    `;
                     card.onclick = () => { handlePinInteraction(pin.id); };
                     registryList.appendChild(card);
                 });
@@ -639,7 +652,6 @@ const MASTER_STATIONS_REGISTRY = [
             document.getElementById('sync-indicator').className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
             
             await pullStateFromCloudRelay();
-            setInterval(pullStateFromCloudRelay, 3000);
         }
 
         async function pushStateToCloudRelay() {
@@ -649,7 +661,7 @@ const MASTER_STATIONS_REGISTRY = [
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(localState)
                 });
-            } catch (err) { console.warn("Sync delay:", err); }
+            } catch (err) { console.warn("Sync update drop:", err); }
         }
 
         async function pullStateFromCloudRelay() {
@@ -662,8 +674,11 @@ const MASTER_STATIONS_REGISTRY = [
                         updateCalculationsAndRegistry();
                     }
                 }
-            } catch (err) { console.warn("Relay listening context drop:", err); }
+            } catch (err) { console.warn("Listening context frame lag:", err); }
         }
+
+        // Set up infinite structural cloud network background updates
+        setInterval(pullStateFromCloudRelay, 2500);
     </script>
 </body>
 </html>
